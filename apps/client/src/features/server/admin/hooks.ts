@@ -2,6 +2,7 @@ import { requestConfirmation } from '@/features/dialogs/actions';
 import { useForm } from '@/hooks/use-form';
 import { getTRPCClient } from '@/lib/trpc';
 import {
+  getTrpcError,
   isDeletedUser,
   parseTrpcErrors,
   Permission,
@@ -167,12 +168,13 @@ export const useAdminUpdates = () => {
     const trpc = getTRPCClient();
 
     try {
-      trpc.others.updateServer.mutate();
+      await trpc.others.updateServer.mutate();
 
       toast.success('Server update initiated');
     } catch (error) {
       console.error('Error updating server:', error);
       setErrors(parseTrpcErrors(error));
+      toast.error(getTrpcError(error, 'Failed to update server'));
     }
   }, []);
 

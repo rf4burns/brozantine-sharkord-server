@@ -5,6 +5,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
 
+## [0.0.31] - 2026-08-21
+
+### Fixed
+
+- Server no longer crash-loops on startup when user id 1 is missing; `SERVER_STARTED` is logged without a user, and activity-log write failures no longer take down the process.
+- In-app updates under systemd replace the binary in place and exit cleanly so Restart=always brings up the new version instead of racing the old one.
+- The Updates UI awaits the update request and shows an error toast if it fails.
+
 ## [0.0.30] - 2026-08-21
 
 ### Added

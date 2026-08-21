@@ -24,12 +24,12 @@ type TEnqueueActivityLog<T extends ActivityLogType = ActivityLogType> = {
 const enqueueActivityLog = <T extends ActivityLogType>({
   type,
   details = {} as TActivityLogDetailsMap[T],
-  userId = 1,
+  userId = null,
   ip
 }: TEnqueueActivityLog<T>) => {
   const date = Date.now();
 
-  return new Promise<void>((resolve, reject) => {
+  return new Promise<void>((resolve) => {
     activityLogQueue.push(async (callback) => {
       const start = performance.now();
 
@@ -49,7 +49,12 @@ const enqueueActivityLog = <T extends ActivityLogType>({
         resolve();
         callback?.();
       } catch (error) {
-        reject(error);
+        // best-effort: never take down the process for a log write failure
+        logger.error(
+          `${chalk.dim('[Activity Logger]')} Failed to log ${type}: %s`,
+          error instanceof Error ? error.message : String(error)
+        );
+        resolve();
         callback?.(error as Error);
       }
     });

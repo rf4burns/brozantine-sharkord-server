@@ -8,11 +8,12 @@ await loadEmbeds();
 // ----------------------------------------
 import { IS_PRODUCTION, SERVER_VERSION } from './utils/env';
 // ----------------------------------------
-import { ActivityLogType } from '@kurier/shared';
+import { ActivityLogType, getErrorMessage } from '@kurier/shared';
 import chalk from 'chalk';
 import { config, SERVER_PRIVATE_IP } from './config';
 import { loadCrons } from './crons';
 import { loadDb } from './db';
+import { logger } from './logger';
 import { pluginManager } from './plugins';
 import { enqueueActivityLog } from './queues/activity-log';
 import { initVoiceRuntimes } from './runtimes';
@@ -42,6 +43,9 @@ console.log('%s', message);
 
 printDebug();
 
-enqueueActivityLog({
-  type: ActivityLogType.SERVER_STARTED
+void enqueueActivityLog({
+  type: ActivityLogType.SERVER_STARTED,
+  userId: null
+}).catch((error) => {
+  logger.error('Failed to log SERVER_STARTED: %s', getErrorMessage(error));
 });

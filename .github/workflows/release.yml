@@ -68,7 +68,7 @@ jobs:
         with:
           tag_name: v${{ steps.get_version.outputs.version }}
           name: v${{ steps.get_version.outputs.version }}
-          draft: true
+          draft: false
           files: |
             apps/server/build/out/kurier-linux-x64
             apps/server/build/out/kurier-linux-arm64

@@ -52,18 +52,22 @@ const MessagesGroup = memo(
       group.length === 1 && !!firstMessage.replyToMessageId;
 
     const groupContent = (
-      <div className="flex min-w-0 max-w-dvw gap-3 pl-4 pt-2 pr-2">
+      <div className="flex min-w-0 max-w-dvw gap-4 pl-4 pt-4 pr-4">
         {isPluginMessage ? (
           <PluginAvatar
             name={pluginMetadata?.name}
             avatarUrl={pluginMetadata?.avatarUrl}
-            className="h-10 w-10"
+            className="h-10 w-10 shrink-0"
           />
         ) : (
-          <UserAvatar userId={user!.id} className="h-10 w-10" showUserPopover />
+          <UserAvatar
+            userId={user!.id}
+            className="h-10 w-10 shrink-0"
+            showUserPopover
+          />
         )}
         <div className="flex min-w-0 flex-col w-full">
-          <div className="flex gap-2 items-baseline pl-1 select-none">
+          <div className="flex gap-2 items-baseline select-none">
             <span
               className={cn(
                 isOwnUser && 'font-bold',

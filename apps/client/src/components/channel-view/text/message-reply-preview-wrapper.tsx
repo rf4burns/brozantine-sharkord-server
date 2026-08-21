@@ -63,7 +63,7 @@ const MessageReplyPreviewWrapper = memo(
 
     return (
       <div>
-        <div className="group flex items-center pl-4 pt-0.5">
+        <div className="group flex items-center pl-4 pr-4 pt-0.5">
           <div className="relative flex w-10 shrink-0 justify-end self-stretch overflow-visible">
             <span
               aria-hidden

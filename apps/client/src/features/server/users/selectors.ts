@@ -1,4 +1,5 @@
 import type { IRootState } from '@/features/store';
+import { getRenderedUsername } from '@/helpers/get-rendered-username';
 import { DELETED_USER_IDENTITY_AND_NAME, UserStatus } from '@kurier/shared';
 import { createSelector } from '@reduxjs/toolkit';
 import { createCachedSelector } from 're-reselect';
@@ -29,7 +30,11 @@ export const usersSelector = createSelector(
         return aStatus - bStatus;
       }
 
-      return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+      return getRenderedUsername(a).localeCompare(
+        getRenderedUsername(b),
+        undefined,
+        { sensitivity: 'base' }
+      );
     });
   }
 );

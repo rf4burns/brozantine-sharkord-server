@@ -277,11 +277,14 @@ export const memberListGroupsSelector = createSelector(
 );
 
 export const memberListHiddenCountSelector = createSelector(
-  [usersSelector],
-  (users) =>
-    Math.max(
-      0,
-      users.filter((user) => !isDeletedUser(user)).length -
-        MEMBER_LIST_MAX_USERS
-    )
+  [usersSelector, memberListGroupsSelector],
+  (users, groups) => {
+    const visibleCount = users.filter((user) => !isDeletedUser(user)).length;
+    const shownCount = groups.reduce(
+      (total, group) => total + group.users.length,
+      0
+    );
+
+    return Math.max(0, visibleCount - shownCount);
+  }
 );

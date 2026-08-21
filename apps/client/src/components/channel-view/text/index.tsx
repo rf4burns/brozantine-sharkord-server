@@ -222,6 +222,14 @@ const TextChannel = memo(
       []
     );
 
+    const virtuosoComponents = useMemo(
+      () => ({
+        // padding on the scroller is unreliable with alignToBottom
+        Footer: () => <div className="h-6 shrink-0" aria-hidden />
+      }),
+      []
+    );
+
     if (!channelCan(ChannelPermission.VIEW_CHANNEL) || loading) {
       return <TextSkeleton />;
     }
@@ -263,7 +271,8 @@ const TextChannel = memo(
             increaseViewportBy={{ top: 400, bottom: 200 }}
             computeItemKey={computeGroupKey}
             itemContent={renderMessageGroup}
-            className="h-full pb-10 pt-2 animate-in fade-in duration-500"
+            components={virtuosoComponents}
+            className="h-full pt-2 animate-in fade-in duration-500"
           />
           <JumpToBottom
             visible={!atBottom}

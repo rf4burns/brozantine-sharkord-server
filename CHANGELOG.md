@@ -5,6 +5,19 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
 
+## [0.0.29] - 2026-08-21
+
+### Changed
+
+- Member list groups online members under hoisted roles; everyone else is under Online or Offline. Owner and default roles are not used as section headers.
+- Chat spacing around message groups, reply previews, the compose box, and the bottom of the message list.
+
+### Fixed
+
+- The owner role now includes Move Members, so dragging people between voice channels works for the server owner.
+- Member list order uses nicknames, not only account usernames.
+- The member list overflow count matches how many people are actually shown.
+
 ## [0.0.28] - 2026-08-21
 
 ### Fixed

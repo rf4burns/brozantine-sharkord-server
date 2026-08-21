@@ -131,6 +131,29 @@ const sendJsonError = (
   res.end(JSON.stringify({ error }));
 };
 
+// leftover JWTs stay valid for 7 days; WS login already rejects these accounts
+const sendHttpAuthError = (
+  user: { deleted: boolean; banned: boolean } | undefined,
+  res: http.ServerResponse
+): boolean => {
+  if (!user) {
+    sendJsonError(res, 401, 'Unauthorized');
+    return true;
+  }
+
+  if (user.deleted) {
+    sendJsonError(res, 403, 'This account has been deleted');
+    return true;
+  }
+
+  if (user.banned) {
+    sendJsonError(res, 403, 'User is banned');
+    return true;
+  }
+
+  return false;
+};
+
 type CacheMetadata = {
   etag: string;
   lastModified: string;
@@ -192,6 +215,7 @@ export {
   hasPrefixPathSegment,
   isSupportedHttpMethod,
   sanitizeFileName,
+  sendHttpAuthError,
   sendJsonError,
   sendNotModified,
   supportedHttpMethods

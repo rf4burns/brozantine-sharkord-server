@@ -1,9 +1,11 @@
 import { UploadHeaders } from '@kurier/shared';
 import { afterEach, describe, expect, test } from 'bun:test';
+import { eq } from 'drizzle-orm';
 import fs from 'fs/promises';
 import path from 'path';
 import { getMockedToken } from '../../__tests__/helpers';
-import { testsBaseUrl } from '../../__tests__/setup';
+import { tdb, testsBaseUrl } from '../../__tests__/setup';
+import { users } from '../../db/schema';
 import { TMP_PATH } from '../../helpers/paths';
 
 describe('/backup', () => {
@@ -54,5 +56,39 @@ describe('/backup', () => {
 
     expect(bytes[0]).toBe(0x50);
     expect(bytes[1]).toBe(0x4b);
+  });
+
+  test('should reject a leftover token after the account is deleted', async () => {
+    const token = await getMockedToken(1);
+
+    await tdb.update(users).set({ deleted: true }).where(eq(users.id, 1));
+
+    const response = await fetch(`${testsBaseUrl}/backup`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({
+      error: 'This account has been deleted'
+    });
+  });
+
+  test('should reject a leftover token after the account is banned', async () => {
+    const token = await getMockedToken(1);
+
+    await tdb.update(users).set({ banned: true }).where(eq(users.id, 1));
+
+    const response = await fetch(`${testsBaseUrl}/backup`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({
+      error: 'User is banned'
+    });
   });
 });

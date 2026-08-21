@@ -11,7 +11,7 @@ import {
   getClientRateLimitKey,
   getRateLimitRetrySeconds
 } from '../utils/rate-limiters/rate-limiter';
-import { getRequestPathname } from './helpers';
+import { getRequestPathname, sendHttpAuthError } from './helpers';
 
 const backupRateLimiter = createRateLimiter({
   maxRequests: config.rateLimiters.exportBackup.maxRequests,
@@ -65,9 +65,8 @@ const backupRouteHandler = async (
 
   const user = await getUserByToken(getRequestToken(req));
 
-  if (!user) {
-    res.writeHead(401, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Unauthorized' }));
+  if (!user || user.deleted || user.banned) {
+    sendHttpAuthError(user, res);
     return;
   }
 

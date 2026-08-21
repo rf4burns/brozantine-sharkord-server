@@ -1,10 +1,11 @@
 import { UploadHeaders, type TTempFile } from '@kurier/shared';
 import { afterAll, beforeEach, describe, expect, test } from 'bun:test';
+import { eq } from 'drizzle-orm';
 import fs from 'fs/promises';
 import path from 'path';
-import { login, uploadFile } from '../../__tests__/helpers';
+import { getMockedToken, login, uploadFile } from '../../__tests__/helpers';
 import { tdb, testsBaseUrl } from '../../__tests__/setup';
-import { settings } from '../../db/schema';
+import { settings, users } from '../../db/schema';
 import { TMP_PATH } from '../../helpers/paths';
 import { sanitizeFileName } from '../helpers';
 
@@ -85,6 +86,34 @@ describe('/upload', () => {
     const data: any = await response.json();
 
     expect(data).toHaveProperty('error', 'Unauthorized');
+  });
+
+  test('should reject a leftover token after the account is deleted', async () => {
+    const leftoverToken = await getMockedToken(1);
+
+    await tdb.update(users).set({ deleted: true }).where(eq(users.id, 1));
+
+    const file = getMockFile('Should not be stored after account deletion.');
+    const response = await uploadFile(file, leftoverToken);
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({
+      error: 'This account has been deleted'
+    });
+  });
+
+  test('should reject a leftover token after the account is banned', async () => {
+    const leftoverToken = await getMockedToken(1);
+
+    await tdb.update(users).set({ banned: true }).where(eq(users.id, 1));
+
+    const file = getMockFile('Should not be stored after account ban.');
+    const response = await uploadFile(file, leftoverToken);
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({
+      error: 'User is banned'
+    });
   });
 
   test('should throw when uploads are disabled', async () => {

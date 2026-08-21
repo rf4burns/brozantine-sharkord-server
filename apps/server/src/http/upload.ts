@@ -6,7 +6,7 @@ import { getSettings } from '../db/queries/server';
 import { getUserByToken } from '../db/queries/users';
 import { logger } from '../logger';
 import { fileManager } from '../utils/file-manager';
-import { sanitizeFileName } from './helpers';
+import { sanitizeFileName, sendHttpAuthError } from './helpers';
 
 const zHeaders = z.object({
   [UploadHeaders.TOKEN]: z.string(),
@@ -37,10 +37,9 @@ const uploadFileRouteHandler = async (
 
   const user = await getUserByToken(token);
 
-  if (!user) {
+  if (!user || user.deleted || user.banned) {
     req.resume();
-    res.writeHead(401, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Unauthorized' }));
+    sendHttpAuthError(user, res);
     return;
   }
 

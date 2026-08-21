@@ -4,7 +4,7 @@ import {
 } from '@/components/voice-provider/helpers';
 import { useVoice } from '@/features/server/voice/hooks';
 import { useStreamQualityData } from '@/hooks/use-stream-quality-data';
-import { StreamKind } from '@sharkord/shared';
+import { StreamKind } from '@kurier/shared';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
   IconButton,
   type TIconButtonSize
-} from '@sharkord/ui';
+} from '@kurier/ui';
 import { Gauge } from 'lucide-react';
 import { memo, useCallback, useState } from 'react';
 

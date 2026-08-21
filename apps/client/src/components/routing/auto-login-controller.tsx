@@ -2,6 +2,7 @@ import { setIsAutoConnecting } from '@/features/app/actions';
 import { useIsAppLoading, useIsPluginsLoading } from '@/features/app/hooks';
 import { connect } from '@/features/server/actions';
 import { useDisconnectInfo, useIsConnected } from '@/features/server/hooks';
+import { getActiveHost, getSavedHost } from '@/helpers/saved-hosts';
 import {
   getLocalStorageItem,
   getLocalStorageItemBool,
@@ -36,7 +37,9 @@ const AutoLoginController = memo(() => {
       LocalStorageKey.AUTO_LOGIN
     );
 
-    const savedToken = getLocalStorageItem(LocalStorageKey.AUTO_LOGIN_TOKEN);
+    const savedToken =
+      getLocalStorageItem(LocalStorageKey.AUTO_LOGIN_TOKEN) ||
+      getSavedHost(getActiveHost())?.token;
 
     if (!autoLoginEnabled || !savedToken) {
       // auto-login not enabled or no token saved, do nothing

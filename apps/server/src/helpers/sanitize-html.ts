@@ -1,4 +1,4 @@
-import { stripZalgo } from '@sharkord/shared';
+import { stripZalgo } from '@kurier/shared';
 import sanitize from 'sanitize-html';
 
 const sanitizeMessageHtml = (html: string): string => {
@@ -32,6 +32,7 @@ const sanitizeMessageHtml = (html: string): string => {
         'data-name',
         'data-user-id',
         'data-channel-id',
+        'data-mention-kind',
         'class'
       ],
       img: ['src', 'alt', 'draggable', 'loading', 'align', 'class'],

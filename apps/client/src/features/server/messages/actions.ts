@@ -11,18 +11,28 @@ import {
   getPlainTextFromHtml,
   hasMention,
   TYPING_MS,
+  UserStatus,
   type TJoinedMessage
-} from '@sharkord/shared';
-import { markChannelAsRead } from '../actions';
+} from '@kurier/shared';
+import {
+  incrementMentionUnread,
+  jumpToMessage,
+  markChannelAsRead
+} from '../actions';
 import {
   channelByIdSelector,
+  channelNotificationLevelByIdSelector,
   isChannelTextVisibleByIdSelector
 } from '../channels/selectors';
 import { pluginMetadataByIdSelector } from '../plugins/selectors';
 import { serverSliceActions } from '../slice';
 import { playSound } from '../sounds/actions';
 import { SoundType } from '../types';
-import { ownUserIdSelector, userByIdSelector } from '../users/selectors';
+import {
+  ownUserIdSelector,
+  ownUserSelector,
+  userByIdSelector
+} from '../users/selectors';
 import { threadMessagesMapSelector } from './selectors';
 
 const sendBrowserNotification = (
@@ -55,13 +65,69 @@ const sendBrowserNotification = (
   const body = textContent ? textContent : 'Sent an attachment';
   const icon = user?.avatar ? getFileUrl(user.avatar) : undefined;
 
-  new Notification(title, { body, icon });
+  const n = new Notification(title, { body, icon });
+
+  n.onclick = () => {
+    window.focus();
+    jumpToMessage({
+      channelId,
+      messageId: message.id,
+      isDm
+    });
+  };
 };
 
 const typingTimeouts: { [key: string]: NodeJS.Timeout } = {};
 
 const getTypingKey = (channelId: number, userId: number) =>
   `${channelId}-${userId}`;
+
+let nextOptimisticId = -1;
+
+export const addOptimisticMessage = (message: TJoinedMessage) => {
+  addMessages(message.channelId, [message]);
+};
+
+export const createOptimisticImageMessage = ({
+  channelId,
+  userId,
+  previewUrls,
+  replyToMessageId
+}: {
+  channelId: number;
+  userId: number;
+  previewUrls: string[];
+  replyToMessageId?: number;
+}): TJoinedMessage => {
+  const id = nextOptimisticId--;
+
+  return {
+    id,
+    content: '',
+    userId,
+    pluginId: null,
+    channelId,
+    parentMessageId: null,
+    replyToMessageId: replyToMessageId ?? null,
+    editable: false,
+    metadata: previewUrls.map((url) => ({
+      kind: 'media',
+      mediaType: 'image',
+      url
+    })),
+    createdAt: Date.now(),
+    updatedAt: null,
+    pinned: false,
+    pinnedAt: null,
+    pinnedBy: null,
+    editedAt: null,
+    editedBy: null,
+    files: [],
+    reactions: [],
+    replyCount: 0,
+    replyTo: null
+  };
+};
 
 export const addMessages = (
   channelId: number,
@@ -133,22 +199,47 @@ export const addMessages = (
 
     const isWindowHidden = document?.hidden;
 
+    const ownUser = ownUserSelector(state);
+    const isOnline =
+      (ownUser?.status ?? UserStatus.OFFLINE) !== UserStatus.OFFLINE;
+    const isMentioned = hasMention(targetMessage.content ?? null, ownUserId, {
+      isOnline
+    });
+
     if (!isFromOwnUser) {
+      const notificationLevel = channelNotificationLevelByIdSelector(
+        state,
+        channelId
+      );
+      const isMuted = notificationLevel === 'nothing';
+      const mentionsOnly = notificationLevel === 'mentions';
       const isThreadReply = !!targetMessage.parentMessageId;
+      const soundType = isMentioned
+        ? SoundType.MENTION_RECEIVED
+        : SoundType.MESSAGE_RECEIVED;
+      const shouldAlert = !isMuted && (!mentionsOnly || isMentioned);
 
-      if (isThreadReply) {
-        const { isOpen, parentMessageId } = threadSidebarDataSelector(state);
+      if (shouldAlert) {
+        if (isThreadReply) {
+          const { isOpen, parentMessageId } = threadSidebarDataSelector(state);
 
-        // only play sound if the user has this thread open
-        if (isOpen && parentMessageId === targetMessage.parentMessageId) {
-          playSound(SoundType.MESSAGE_RECEIVED);
+          // only play sound if the user has this thread open
+          if (isOpen && parentMessageId === targetMessage.parentMessageId) {
+            playSound(soundType);
+          }
+        } else {
+          playSound(soundType);
         }
-      } else {
-        playSound(SoundType.MESSAGE_RECEIVED);
+      }
+
+      if (!isChannelTextVisible) {
+        if (isMentioned && !isThreadReply && !isMuted) {
+          incrementMentionUnread(channelId);
+        }
       }
 
       // only send browser notifications if the user is not currently viewing this channel
-      if (!isChannelTextVisible || isWindowHidden) {
+      if (shouldAlert && (!isChannelTextVisible || isWindowHidden)) {
         const channel = channelByIdSelector(state, channelId);
         const isDmChannel = !!channel?.isDm;
         const hasDmNotificationsEnabled =
@@ -156,14 +247,13 @@ export const addMessages = (
         const hasRepliesNotificationsEnabled =
           browserNotificationsForRepliesSelector(state);
 
-        if (isDmChannel && hasDmNotificationsEnabled) {
+        if (mentionsOnly) {
+          if (isMentioned) {
+            sendBrowserNotification(targetMessage, channelId, isDmChannel);
+          }
+        } else if (isDmChannel && hasDmNotificationsEnabled) {
           sendBrowserNotification(targetMessage, channelId, true);
         } else if (notificationsForMentionsOnly) {
-          const isMentioned = hasMention(
-            targetMessage.content ?? null,
-            ownUserId
-          );
-
           if (isMentioned) {
             sendBrowserNotification(targetMessage, channelId);
           }
@@ -185,6 +275,24 @@ export const addMessages = (
       markChannelAsRead(channelId, true);
     }
   }
+};
+
+export const replaceOptimisticMessage = (
+  channelId: number,
+  tempId: number,
+  message: TJoinedMessage
+) => {
+  store.dispatch(
+    serverSliceActions.replaceOptimisticMessage({
+      channelId,
+      tempId,
+      message
+    })
+  );
+};
+
+export const trimOldestMessages = (channelId: number, keep: number) => {
+  store.dispatch(serverSliceActions.trimOldestMessages({ channelId, keep }));
 };
 
 export const updateMessage = (channelId: number, message: TJoinedMessage) => {

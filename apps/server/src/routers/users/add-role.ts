@@ -1,9 +1,15 @@
-import { Permission } from '@sharkord/shared';
+import { ActivityLogType, Permission } from '@kurier/shared';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../../db';
 import { publishUser } from '../../db/publishers';
+import { getRole } from '../../db/queries/roles';
 import { userRoles } from '../../db/schema';
+import {
+  assertCanManageRole,
+  assertCanModerateUser
+} from '../../helpers/role-hierarchy';
+import { enqueueActivityLog } from '../../queues/activity-log';
 import { invariant } from '../../utils/invariant';
 import { protectedProcedure } from '../../utils/trpc';
 import { assertCanModifyOwnerRole } from './assert-can-modify-owner-role';
@@ -34,6 +40,15 @@ const addRoleRoute = protectedProcedure
     });
 
     await assertCanModifyOwnerRole(ctx.userId, input.roleId, 'assign');
+    await assertCanModerateUser(ctx.userId, input.userId);
+    await assertCanManageRole(ctx.userId, input.roleId);
+
+    const role = await getRole(input.roleId);
+
+    invariant(role, {
+      code: 'NOT_FOUND',
+      message: 'Role not found'
+    });
 
     await db.insert(userRoles).values({
       userId: input.userId,
@@ -42,6 +57,17 @@ const addRoleRoute = protectedProcedure
     });
 
     publishUser(input.userId, 'update');
+
+    enqueueActivityLog({
+      type: ActivityLogType.USER_ROLE_ADDED,
+      userId: ctx.userId,
+      details: {
+        targetUserId: input.userId,
+        roleId: input.roleId,
+        roleName: role.name,
+        assignedBy: ctx.userId
+      }
+    });
   });
 
 export { addRoleRoute };

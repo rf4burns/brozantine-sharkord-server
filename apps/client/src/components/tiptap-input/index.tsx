@@ -1,7 +1,7 @@
 import { useCustomEmojis } from '@/features/server/emojis/hooks';
-import { useReferenceableChannels } from '@/features/server/hooks';
+import { useCan, useReferenceableChannels } from '@/features/server/hooks';
 import { useFilteredUsers } from '@/features/server/users/hooks';
-import { TestId, type TCommandInfo } from '@sharkord/shared';
+import { Permission, TestId, type TCommandInfo } from '@kurier/shared';
 import Emoji, { gitHubEmojis } from '@tiptap/extension-emoji';
 import Link from '@tiptap/extension-link';
 import { EditorContent, useEditor } from '@tiptap/react';
@@ -37,6 +37,7 @@ import type { TEmojiItem } from './helpers';
 
 type TTiptapInputHandle = {
   insertEmoji: (emoji: TEmojiItem) => void;
+  insertGifUrl: (url: string) => void;
   focus: () => void;
 };
 
@@ -81,6 +82,8 @@ const TiptapInput = memo(
     const customEmojis = useCustomEmojis();
     const users = useFilteredUsers();
     const channels = useReferenceableChannels();
+    const can = useCan();
+    const canMentionEveryone = can(Permission.MENTION_EVERYONE);
 
     const extensions = useMemo(() => {
       const exts = [
@@ -113,6 +116,7 @@ const TiptapInput = memo(
         }),
         Mention.configure({
           users,
+          canMentionEveryone,
           suggestion: MentionSuggestion
         }),
         MentionNode,
@@ -135,7 +139,7 @@ const TiptapInput = memo(
       }
 
       return exts;
-    }, [customEmojis, commands, users, channels]);
+    }, [customEmojis, commands, users, channels, canMentionEveryone]);
 
     const editor = useEditor({
       extensions,
@@ -222,8 +226,15 @@ const TiptapInput = memo(
       }
     };
 
+    const handleGifInsert = (url: string) => {
+      if (disabled || readOnly || !url) return;
+
+      editor?.chain().focus().insertContent(` ${url} `).run();
+    };
+
     useImperativeHandle(ref, () => ({
       insertEmoji: handleEmojiSelect,
+      insertGifUrl: handleGifInsert,
       focus: () => editor?.commands.focus()
     }));
 
@@ -267,14 +278,15 @@ const TiptapInput = memo(
       if (editor) {
         const storage = editor.storage as unknown as Record<
           string,
-          { users?: typeof users }
+          { users?: typeof users; canMentionEveryone?: boolean }
         >;
 
         if (storage[MENTION_STORAGE_KEY]) {
           storage[MENTION_STORAGE_KEY].users = users;
+          storage[MENTION_STORAGE_KEY].canMentionEveryone = canMentionEveryone;
         }
       }
-    }, [editor, users]);
+    }, [editor, users, canMentionEveryone]);
 
     // keep channel reference storage in sync with the channels from the store
     useEffect(() => {

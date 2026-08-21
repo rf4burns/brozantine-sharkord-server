@@ -1,9 +1,9 @@
 import { LeftSidebar } from '@/components/left-sidebar';
+import { ServerRail } from '@/components/left-sidebar/server-rail';
 import { ModViewSheet } from '@/components/mod-view-sheet';
 import { Protect } from '@/components/protect';
 import { RightSidebar } from '@/components/right-sidebar';
 import { ThreadSidebar } from '@/components/thread-sidebar';
-import { TopBar } from '@/components/top-bar';
 import { VoiceChatSidebar } from '@/components/voice-chat-sidebar';
 import { VoiceProvider } from '@/components/voice-provider';
 import { useSelectedDmChannelId, useThreadSidebar } from '@/features/app/hooks';
@@ -13,7 +13,7 @@ import { useDmsOpen, usePublicServerSettings } from '@/features/server/hooks';
 import { getLocalStorageItemBool, LocalStorageKey } from '@/helpers/storage';
 import { useSwipeGestures } from '@/hooks/use-swipe-gestures';
 import { cn } from '@/lib/utils';
-import { Permission, TestId } from '@sharkord/shared';
+import { TestId, USER_MODERATION_PERMISSIONS } from '@kurier/shared';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { ContentWrapper } from './content-wrapper';
 import { PreventBrowser } from './prevent-browser';
@@ -78,13 +78,9 @@ const ServerView = memo(() => {
     <VoiceProvider>
       <div
         data-testid={TestId.SERVER_VIEW}
-        className="flex h-dvh flex-col bg-background text-foreground dark"
+        className="flex h-dvh flex-col bg-background text-foreground"
         {...swipeHandlers}
       >
-        <TopBar
-          onToggleRightSidebar={handleDesktopRightSidebarToggle}
-          isOpen={isDesktopRightSidebarOpen}
-        />
         <div className="relative flex min-h-0 flex-1 overflow-hidden">
           <PreventBrowser />
 
@@ -102,18 +98,24 @@ const ServerView = memo(() => {
             />
           )}
 
-          <LeftSidebar
+          <div
             className={cn(
-              'md:relative md:flex fixed inset-0 left-0 h-full z-40 md:z-0 transition-transform duration-300 ease-in-out',
+              'fixed inset-0 left-0 z-40 flex h-full md:relative md:z-0 md:flex',
+              'transition-transform duration-300 ease-in-out',
               isMobileMenuOpen
                 ? 'translate-x-0'
                 : '-translate-x-full md:translate-x-0'
             )}
-          />
+          >
+            <ServerRail />
+            <LeftSidebar />
+          </div>
 
           <ContentWrapper
             isDmMode={dmsOpen}
             selectedDmChannelId={selectedDmChannelId}
+            onToggleRightSidebar={handleDesktopRightSidebarToggle}
+            isRightSidebarOpen={isDesktopRightSidebarOpen}
           />
 
           <VoiceChatSidebar />
@@ -131,7 +133,7 @@ const ServerView = memo(() => {
             isOpen={isMobileUsersOpen || isDesktopRightSidebarOpen}
           />
 
-          <Protect permission={Permission.MANAGE_USERS}>
+          <Protect permission={USER_MODERATION_PERMISSIONS}>
             <ModViewSheet />
           </Protect>
         </div>

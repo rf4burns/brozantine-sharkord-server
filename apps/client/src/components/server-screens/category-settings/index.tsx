@@ -1,5 +1,4 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@sharkord/ui';
-import { memo } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TServerScreenBaseProps } from '../screens';
 import { ServerScreenLayout } from '../server-screen-layout';
@@ -12,20 +11,26 @@ type TCategorySettingsProps = TServerScreenBaseProps & {
 const CategorySettings = memo(
   ({ close, categoryId }: TCategorySettingsProps) => {
     const { t } = useTranslation('settings');
+    const [tab, setTab] = useState('general');
+
+    const groups = useMemo(
+      () => [
+        {
+          items: [{ id: 'general', label: t('generalTab') }]
+        }
+      ],
+      [t]
+    );
 
     return (
-      <ServerScreenLayout close={close} title={t('categorySettingsTitle')}>
-        <div className="mx-auto max-w-4xl">
-          <Tabs defaultValue="general" className="w-full">
-            <TabsList className="mb-6">
-              <TabsTrigger value="general">{t('generalTab')}</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="general" className="space-y-6">
-              <General categoryId={categoryId} />
-            </TabsContent>
-          </Tabs>
-        </div>
+      <ServerScreenLayout
+        close={close}
+        title={t('categorySettingsTitle')}
+        groups={groups}
+        value={tab}
+        onValueChange={setTab}
+      >
+        {tab === 'general' && <General categoryId={categoryId} />}
       </ServerScreenLayout>
     );
   }

@@ -1,9 +1,10 @@
-import { ActivityLogType, ServerEvents, UserStatus } from '@sharkord/shared';
+import { ActivityLogType, ServerEvents, UserStatus } from '@kurier/shared';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../../db';
 import {
   getAllChannelUserPermissions,
+  getChannelNotificationOverridesForUser,
   getChannelsForUser,
   getChannelsReadStatesForUser
 } from '../../db/queries/channels';
@@ -77,6 +78,7 @@ const joinServerRoute = rateLimitedProcedure(t.procedure, {
       emojis,
       channelPermissions,
       readStates,
+      notificationOverrides,
       publicSettings,
       pluginsMetadata,
       hasJoinedBefore
@@ -88,6 +90,7 @@ const joinServerRoute = rateLimitedProcedure(t.procedure, {
       getEmojis(),
       getAllChannelUserPermissions(ctx.user.id),
       getChannelsReadStatesForUser(ctx.user.id),
+      getChannelNotificationOverridesForUser(ctx.user.id),
       getPublicSettings(),
       pluginManager.getActivePluginMetadata(),
       hasUserJoinedBefore(ctx.user.id)
@@ -154,6 +157,7 @@ const joinServerRoute = rateLimitedProcedure(t.procedure, {
       publicSettings,
       channelPermissions,
       readStates,
+      notificationOverrides,
       commands: pluginManager.getCommands(),
       pluginIdsWithComponents: pluginManager.getPluginIdsWithComponents(),
       pluginsMetadata,

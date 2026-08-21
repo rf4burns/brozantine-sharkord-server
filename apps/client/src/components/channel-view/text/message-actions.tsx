@@ -9,8 +9,8 @@ import { openThreadSidebar } from '@/features/app/actions';
 import { useIsShiftHeld } from '@/features/app/hooks';
 import { requestConfirmation } from '@/features/dialogs/actions';
 import { getTRPCClient } from '@/lib/trpc';
-import { Permission } from '@sharkord/shared';
-import { IconButton } from '@sharkord/ui';
+import { Permission } from '@kurier/shared';
+import { IconButton } from '@kurier/ui';
 import {
   MessageSquareText,
   Pencil,

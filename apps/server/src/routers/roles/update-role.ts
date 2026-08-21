@@ -4,14 +4,17 @@ import {
   Permission,
   STORAGE_MAX_QUOTA_PER_USER,
   STORAGE_MIN_QUOTA_PER_USER
-} from '@sharkord/shared';
+} from '@kurier/shared';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../../db';
 import { syncRolePermissions } from '../../db/mutations/roles';
 import { publishRole } from '../../db/publishers';
+import { getRole } from '../../db/queries/roles';
 import { roles } from '../../db/schema';
+import { assertCanManageRole } from '../../helpers/role-hierarchy';
 import { enqueueActivityLog } from '../../queues/activity-log';
+import { invariant } from '../../utils/invariant';
 import { protectedProcedure } from '../../utils/trpc';
 
 const updateRoleRoute = protectedProcedure
@@ -23,6 +26,7 @@ const updateRoleRoute = protectedProcedure
         .string()
         .regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Invalid hex color'),
       permissions: z.enum(Permission).array(),
+      hoist: z.boolean(),
       storageQuotaOverrideEnabled: z.boolean(),
       storageSpaceQuota: z
         .number()
@@ -33,11 +37,23 @@ const updateRoleRoute = protectedProcedure
   .mutation(async ({ ctx, input }) => {
     await ctx.needsPermission(Permission.MANAGE_ROLES);
 
+    await assertCanManageRole(ctx.userId, input.roleId);
+
+    const existingRole = await getRole(input.roleId);
+
+    invariant(existingRole, {
+      code: 'NOT_FOUND',
+      message: 'Role not found'
+    });
+
+    const hoist = existingRole.isDefault ? false : input.hoist;
+
     const updatedRole = await db
       .update(roles)
       .set({
         name: input.name,
         color: input.color,
+        hoist,
         storageQuotaOverrideEnabled: input.storageQuotaOverrideEnabled,
         storageSpaceQuota: input.storageSpaceQuota
       })

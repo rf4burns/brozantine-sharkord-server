@@ -1,9 +1,10 @@
 import type { TEmojiItem } from '@/components/tiptap-input/helpers';
 import type { EmojiItem } from '@tiptap/extension-emoji';
 import { gitHubEmojis } from '@tiptap/extension-emoji';
+import { getTwemojiUrl } from './twemoji';
 
 const EMOJI_CATEGORIES = [
-  { id: 'recent', label: 'Recent', icon: '🕐' },
+  { id: 'recent', label: 'Frequently used', icon: '🕐' },
   { id: 'people & body', label: 'People', icon: '😀' },
   { id: 'animals & nature', label: 'Nature', icon: '🐻' },
   { id: 'food & drink', label: 'Food', icon: '🍕' },
@@ -19,7 +20,7 @@ type EmojiCategoryId = (typeof EMOJI_CATEGORIES)[number]['id'];
 const toTEmojiItem = (emoji: EmojiItem): TEmojiItem => ({
   name: emoji.name,
   shortcodes: emoji.shortcodes,
-  fallbackImage: emoji.fallbackImage,
+  fallbackImage: emoji.emoji ? getTwemojiUrl(emoji.emoji) : emoji.fallbackImage,
   emoji: emoji.emoji
 });
 

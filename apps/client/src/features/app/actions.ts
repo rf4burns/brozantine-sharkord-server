@@ -1,12 +1,13 @@
 import { assertNotificationsPermission } from '@/helpers/assert-notifications-permission';
 import { getFileUrl, getUrlFromServer } from '@/helpers/get-file-url';
+import { getActiveHost, upsertSavedHost } from '@/helpers/saved-hosts';
 import {
   LocalStorageKey,
   setLocalStorageItem,
   setLocalStorageItemBool
 } from '@/helpers/storage';
 import type { TMessageJumpToTarget } from '@/types';
-import type { TServerInfo } from '@sharkord/shared';
+import type { TServerInfo } from '@kurier/shared';
 import { toast } from 'sonner';
 import { markChannelAsRead, setInfo } from '../server/actions';
 import { store } from '../store';
@@ -55,7 +56,7 @@ const applyServerBranding = (info: TServerInfo) => {
 
   const logoUrl = info.logo
     ? getFileUrl(info.logo)
-    : `${getUrlFromServer()}/favicon.ico`;
+    : `${getUrlFromServer()}/kurier-logo.png`;
 
   setOrCreateLink('icon', logoUrl);
   setOrCreateLink('apple-touch-icon', logoUrl);
@@ -90,6 +91,11 @@ export const loadApp = async () => {
 
   setInfo(info);
   applyServerBranding(info);
+  upsertSavedHost({
+    host: getActiveHost(),
+    name: info.name,
+    logo: info.logo ? getFileUrl(info.logo) : undefined
+  });
   setAppLoading(false);
 };
 

@@ -1,9 +1,15 @@
-import { Permission } from '@sharkord/shared';
+import { ActivityLogType, Permission } from '@kurier/shared';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../../db';
 import { publishUser } from '../../db/publishers';
+import { getRole } from '../../db/queries/roles';
 import { userRoles } from '../../db/schema';
+import {
+  assertCanManageRole,
+  assertCanModerateUser
+} from '../../helpers/role-hierarchy';
+import { enqueueActivityLog } from '../../queues/activity-log';
 import { invariant } from '../../utils/invariant';
 import { protectedProcedure } from '../../utils/trpc';
 import { assertCanModifyOwnerRole } from './assert-can-modify-owner-role';
@@ -19,6 +25,8 @@ const removeRoleRoute = protectedProcedure
     await ctx.needsPermission(Permission.MANAGE_USERS);
 
     await assertCanModifyOwnerRole(ctx.userId, input.roleId, 'remove');
+    await assertCanModerateUser(ctx.userId, input.userId);
+    await assertCanManageRole(ctx.userId, input.roleId);
 
     const existing = await db
       .select()
@@ -36,6 +44,8 @@ const removeRoleRoute = protectedProcedure
       message: 'User does not have this role'
     });
 
+    const role = await getRole(input.roleId);
+
     await db
       .delete(userRoles)
       .where(
@@ -46,6 +56,17 @@ const removeRoleRoute = protectedProcedure
       );
 
     publishUser(input.userId, 'update');
+
+    enqueueActivityLog({
+      type: ActivityLogType.USER_ROLE_REMOVED,
+      userId: ctx.userId,
+      details: {
+        targetUserId: input.userId,
+        roleId: input.roleId,
+        roleName: role?.name ?? '',
+        removedBy: ctx.userId
+      }
+    });
   });
 
 export { removeRoleRoute };

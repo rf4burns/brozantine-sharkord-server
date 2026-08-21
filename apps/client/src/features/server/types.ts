@@ -2,10 +2,11 @@ import {
   type TJoinedMessage,
   type TJoinedPublicUser,
   type TVoiceUserState
-} from '@sharkord/shared';
+} from '@kurier/shared';
 
 export enum SoundType {
   MESSAGE_RECEIVED = 'message_received',
+  MENTION_RECEIVED = 'mention_received',
   MESSAGE_SENT = 'message_sent',
   SERVER_DISCONNECTED = 'server_disconnected',
 
@@ -47,4 +48,5 @@ export type TDisconnectInfo = {
 
 export type TVoiceUser = TJoinedPublicUser & {
   state: TVoiceUserState;
+  joinedAt: number;
 };

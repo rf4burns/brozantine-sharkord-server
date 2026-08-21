@@ -1,6 +1,10 @@
 import { assertVoiceChatClose } from '@/features/app/actions';
 import { store } from '@/features/store';
-import type { TChannel, TChannelUserPermissionsMap } from '@sharkord/shared';
+import type {
+  TChannel,
+  TChannelNotificationLevel,
+  TChannelUserPermissionsMap
+} from '@kurier/shared';
 import { markChannelAsRead } from '../actions';
 import { serverSliceActions } from '../slice';
 import {
@@ -11,12 +15,38 @@ import {
   selectedChannelIdSelector
 } from './selectors';
 
+let previousSelectedChannelId: number | undefined;
+
+const scheduleIdleMessagePrune = (keepIds: number[]) => {
+  const run = () => {
+    store.dispatch(
+      serverSliceActions.pruneInactiveChannelMessages({ keepIds })
+    );
+  };
+
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(run, { timeout: 2000 });
+    return;
+  }
+
+  window.setTimeout(run, 500);
+};
+
 export const setChannels = (channels: TChannel[]) => {
   store.dispatch(serverSliceActions.setChannels(channels));
 };
 
 export const setSelectedChannelId = (channelId: number | undefined) => {
+  const keepIds = [channelId, previousSelectedChannelId].filter(
+    (id): id is number => typeof id === 'number'
+  );
+
+  previousSelectedChannelId = channelId;
   store.dispatch(serverSliceActions.setSelectedChannelId(channelId));
+
+  if (keepIds.length > 0) {
+    scheduleIdleMessagePrune(keepIds);
+  }
 
   if (!channelId) {
     return;
@@ -117,4 +147,11 @@ export const setChannelReadState = (
   store.dispatch(
     serverSliceActions.setChannelReadState({ channelId, count: actualCount })
   );
+};
+
+export const setChannelNotificationOverride = (payload: {
+  channelId: number;
+  level: TChannelNotificationLevel;
+}) => {
+  store.dispatch(serverSliceActions.setChannelNotificationOverride(payload));
 };

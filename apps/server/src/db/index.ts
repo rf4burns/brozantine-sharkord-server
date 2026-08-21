@@ -7,9 +7,10 @@ import { IS_E2E } from '../utils/env';
 import { seedDatabase } from './seed';
 
 let db: BunSQLiteDatabase;
+let sqlite: Database;
 
 const loadDb = async () => {
-  const sqlite = new Database(DB_PATH, { create: true, strict: true });
+  sqlite = new Database(DB_PATH, { create: true, strict: true });
 
   sqlite.run('PRAGMA foreign_keys = ON;');
 
@@ -24,4 +25,10 @@ const loadDb = async () => {
   }
 };
 
-export { db, loadDb };
+const snapshotDatabaseTo = (destPath: string) => {
+  const escaped = destPath.replaceAll("'", "''");
+
+  sqlite.run(`VACUUM INTO '${escaped}'`);
+};
+
+export { db, loadDb, snapshotDatabaseTo };

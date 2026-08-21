@@ -1,6 +1,6 @@
 import type { IRootState } from '@/features/store';
+import { PluginSlot, type TPluginReactComponent } from '@kurier/shared';
 import { createSelector } from '@reduxjs/toolkit';
-import { PluginSlot, type TPluginReactComponent } from '@sharkord/shared';
 import { createCachedSelector } from 're-reselect';
 
 export const pluginsMetadataSelector = (state: IRootState) =>

@@ -1,4 +1,4 @@
-import { Button, cn, Input } from '@sharkord/ui';
+import { Button, cn, Input } from '@kurier/ui';
 import { ChevronsLeft, ChevronsRight } from 'lucide-react';
 import {
   createContext,

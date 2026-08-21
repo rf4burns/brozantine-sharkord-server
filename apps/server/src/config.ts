@@ -1,4 +1,4 @@
-import { getErrorMessage } from '@sharkord/shared';
+import { getErrorMessage } from '@kurier/shared';
 import fs from 'fs/promises';
 import { parse, stringify } from 'ini';
 import z from 'zod';
@@ -73,6 +73,18 @@ const zConfig = z.object({
     handshake: z.object({
       maxRequests: z.coerce.number().int().positive(),
       windowMs: z.coerce.number().int().positive()
+    }),
+    getActivityLog: z.object({
+      maxRequests: z.coerce.number().int().positive(),
+      windowMs: z.coerce.number().int().positive()
+    }),
+    setNotificationOverride: z.object({
+      maxRequests: z.coerce.number().int().positive(),
+      windowMs: z.coerce.number().int().positive()
+    }),
+    exportBackup: z.object({
+      maxRequests: z.coerce.number().int().positive(),
+      windowMs: z.coerce.number().int().positive()
     })
   })
 });
@@ -138,6 +150,18 @@ const defaultConfig: TConfig = {
     handshake: {
       maxRequests: 10,
       windowMs: 60_000
+    },
+    getActivityLog: {
+      maxRequests: 30,
+      windowMs: 10_000
+    },
+    setNotificationOverride: {
+      maxRequests: 30,
+      windowMs: 10_000
+    },
+    exportBackup: {
+      maxRequests: 2,
+      windowMs: 60_000
     }
   }
 };
@@ -177,12 +201,12 @@ if (!configExists) {
 }
 
 config = applyEnvOverrides(config, {
-  'server.port': 'SHARKORD_PORT',
-  'server.debug': 'SHARKORD_DEBUG',
-  'server.autoupdate': 'SHARKORD_AUTOUPDATE',
-  'webRtc.port': 'SHARKORD_WEBRTC_PORT',
-  'webRtc.announcedAddress': 'SHARKORD_WEBRTC_ANNOUNCED_ADDRESS',
-  'webRtc.maxBitrate': 'SHARKORD_WEBRTC_MAX_BITRATE'
+  'server.port': 'KURIER_PORT',
+  'server.debug': 'KURIER_DEBUG',
+  'server.autoupdate': 'KURIER_AUTOUPDATE',
+  'webRtc.port': 'KURIER_WEBRTC_PORT',
+  'webRtc.announcedAddress': 'KURIER_WEBRTC_ANNOUNCED_ADDRESS',
+  'webRtc.maxBitrate': 'KURIER_WEBRTC_MAX_BITRATE'
 });
 
 config = Object.freeze(config);

@@ -1,13 +1,14 @@
 import { openThreadSidebar } from '@/features/app/actions';
 import { useCan } from '@/features/server/hooks';
-import { useIsOwnUser, useOwnUserId } from '@/features/server/users/hooks';
+import { useIsOwnUser, useOwnUser } from '@/features/server/users/hooks';
 import { cn } from '@/lib/utils';
 import {
   hasMention,
   Permission,
   TestId,
+  UserStatus,
   type TJoinedMessage
-} from '@sharkord/shared';
+} from '@kurier/shared';
 import { MessageSquareText } from 'lucide-react';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -44,7 +45,7 @@ const Message = memo(
     const isEditing = isPencilEditing || editingMessageId === message.id;
     const isFromOwnUser = useIsOwnUser(message.userId);
     const can = useCan();
-    const ownUserId = useOwnUserId();
+    const ownUser = useOwnUser();
 
     const canManage = useMemo(
       () => can(Permission.MANAGE_MESSAGES) || isFromOwnUser,
@@ -52,8 +53,12 @@ const Message = memo(
     );
 
     const isMentioned = useMemo(
-      () => hasMention(message.content, ownUserId),
-      [message.content, ownUserId]
+      () =>
+        hasMention(message.content, ownUser?.id, {
+          isOnline:
+            (ownUser?.status ?? UserStatus.OFFLINE) !== UserStatus.OFFLINE
+        }),
+      [message.content, ownUser?.id, ownUser?.status]
     );
 
     const isThreadReply = !!message.parentMessageId;
@@ -66,10 +71,10 @@ const Message = memo(
     return (
       <div
         className={cn(
-          'min-w-0 flex-1 ml-1 relative hover:bg-secondary/50 rounded-md px-1 py-0.5 group',
+          'group relative min-w-0 flex-1 px-0 py-0',
           isActiveThread && 'bg-primary/10',
-          isMentioned && 'border-primary bg-primary/5',
-          isInlineReplyTarget && 'ring-1 ring-primary/50 bg-primary/10'
+          isMentioned && 'border-l-2 border-l-[#f0b232] bg-[#f0b232]/10 pl-2',
+          isInlineReplyTarget && 'bg-primary/10'
         )}
         data-testid={TestId.MESSAGE_ITEM}
         data-message-id={message.id}
@@ -85,7 +90,7 @@ const Message = memo(
               <button
                 type="button"
                 onClick={onThreadClick}
-                className="flex items-center gap-1 text-xs text-primary/70 hover:text-primary hover:underline mt-1 transition-colors"
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline mt-1 transition-colors"
               >
                 <MessageSquareText className="h-3 w-3" />
                 <span>{t('reply', { count: replyCount })}</span>

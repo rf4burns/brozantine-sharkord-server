@@ -1,14 +1,19 @@
 import { getRenderedUsername } from '@/helpers/get-rendered-username';
-import type { TJoinedPublicUser } from '@sharkord/shared';
+import type { TJoinedPublicUser } from '@kurier/shared';
 import { Extension } from '@tiptap/core';
 import { PluginKey } from '@tiptap/pm/state';
 import Suggestion from '@tiptap/suggestion';
-import { MENTION_STORAGE_KEY, MentionSuggestion } from './suggestion';
+import {
+  MENTION_STORAGE_KEY,
+  MentionSuggestion,
+  type TMentionSuggestionItem
+} from './suggestion';
 
 export const MentionPluginKey = new PluginKey('mention');
 
 type TMentionOptions = {
   users: TJoinedPublicUser[];
+  canMentionEveryone: boolean;
   suggestion: typeof MentionSuggestion;
 };
 
@@ -17,17 +22,19 @@ export const Mention = Extension.create<TMentionOptions>({
   addOptions() {
     return {
       users: [],
+      canMentionEveryone: false,
       suggestion: MentionSuggestion
     };
   },
   addStorage() {
     return {
-      users: this.options.users
+      users: this.options.users,
+      canMentionEveryone: this.options.canMentionEveryone
     };
   },
   addProseMirrorPlugins() {
     return [
-      Suggestion<TJoinedPublicUser, TJoinedPublicUser>({
+      Suggestion<TMentionSuggestionItem, TMentionSuggestionItem>({
         editor: this.editor,
         pluginKey: MentionPluginKey,
         char: '@',
@@ -36,7 +43,11 @@ export const Mention = Extension.create<TMentionOptions>({
         items: this.options.suggestion.items,
         render: this.options.suggestion.render,
         command: ({ editor, range, props }) => {
-          const displayName = getRenderedUsername(props);
+          const isSpecial = props.type === 'special';
+          const displayName = isSpecial
+            ? props.kind
+            : getRenderedUsername(props.user);
+
           editor
             .chain()
             .focus()
@@ -44,7 +55,9 @@ export const Mention = Extension.create<TMentionOptions>({
             .insertContent([
               {
                 type: 'mention',
-                attrs: { userId: props.id, label: displayName }
+                attrs: isSpecial
+                  ? { mentionKind: props.kind, label: displayName }
+                  : { userId: props.user.id, label: displayName }
               },
               { type: 'text', text: ' ' }
             ])

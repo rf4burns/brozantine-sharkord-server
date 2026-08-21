@@ -1,10 +1,6 @@
 import { getTRPCClient } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
-import {
-  ChannelType,
-  parseTrpcErrors,
-  type TTrpcErrors
-} from '@sharkord/shared';
+import { ChannelType, parseTrpcErrors, type TTrpcErrors } from '@kurier/shared';
 import {
   AutoFocus,
   Button,
@@ -15,7 +11,7 @@ import {
   DialogTitle,
   Group,
   Input
-} from '@sharkord/ui';
+} from '@kurier/ui';
 import { Hash, Mic } from 'lucide-react';
 import { memo, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -46,7 +42,7 @@ const ChannelTypeItem = ({
     {icon}
     <div className="flex flex-col">
       <span>{title}</span>
-      <span className="text-sm text-primary/60">{description}</span>
+      <span className="text-sm text-muted-foreground">{description}</span>
     </div>
   </div>
 );

@@ -1,4 +1,4 @@
-import type { TJoinedEmoji } from '@sharkord/shared';
+import type { TJoinedEmoji } from '@kurier/shared';
 import { eq } from 'drizzle-orm';
 import { db } from '..';
 import { attachFileToken } from '../../helpers/files-crypto';
@@ -11,10 +11,15 @@ const emojiSelectFields = {
   user: {
     id: users.id,
     name: users.name,
+    nickname: users.nickname,
+    pronouns: users.pronouns,
+    statusMessage: users.statusMessage,
+    preferences: users.preferences,
     profileColor: users.profileColor,
     bio: users.bio,
     createdAt: users.createdAt,
     banned: users.banned,
+    deleted: users.deleted,
     avatarId: users.avatarId,
     bannerId: users.bannerId
   }

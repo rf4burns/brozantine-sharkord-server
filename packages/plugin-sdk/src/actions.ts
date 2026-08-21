@@ -2,7 +2,7 @@ import type {
   TActionContract,
   TInvokerContext,
   TPluginActions
-} from '@sharkord/shared';
+} from '@kurier/shared';
 import type { PluginContext } from '.';
 
 type TypedRegisterAction<TActions extends TActionContract> = <

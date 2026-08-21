@@ -1,4 +1,4 @@
-import type { TTempFile } from '@sharkord/shared';
+import type { TTempFile } from '@kurier/shared';
 import { describe, expect, test } from 'bun:test';
 import {
   getCaller,
@@ -39,6 +39,8 @@ describe('others router', () => {
     expect(result).toHaveProperty('roles');
     expect(result).toHaveProperty('emojis');
     expect(result).toHaveProperty('channelPermissions');
+    expect(result).toHaveProperty('readStates');
+    expect(result).toHaveProperty('notificationOverrides');
     expect(result).toHaveProperty('commands');
     expect(result).toHaveProperty('pluginIdsWithComponents');
 

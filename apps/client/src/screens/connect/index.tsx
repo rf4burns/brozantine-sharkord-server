@@ -2,19 +2,26 @@ import { LanguageSwitcher } from '@/components/language-switcher';
 import { PluginSlotRenderer } from '@/components/plugin-slot-renderer';
 import { connect } from '@/features/server/actions';
 import { useInfo } from '@/features/server/hooks';
-import { getFileUrl, getUrlFromServer } from '@/helpers/get-file-url';
+import {
+  getFileUrl,
+  getHostFromServer,
+  getUrlFromServer
+} from '@/helpers/get-file-url';
+import { upsertSavedHost } from '@/helpers/saved-hosts';
 import {
   getLocalStorageItem,
   getLocalStorageItemBool,
+  getSessionStorageItem,
   LocalStorageKey,
   removeLocalStorageItem,
+  removeSessionStorageItem,
   SessionStorageKey,
   setLocalStorageItem,
   setLocalStorageItemBool,
   setSessionStorageItem
 } from '@/helpers/storage';
 import { useForm } from '@/hooks/use-form';
-import { PluginSlot, TestId } from '@sharkord/shared';
+import { PluginSlot, TestId } from '@kurier/shared';
 import {
   Alert,
   AlertDescription,
@@ -28,7 +35,7 @@ import {
   Input,
   Label,
   Switch
-} from '@sharkord/ui';
+} from '@kurier/ui';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -54,8 +61,10 @@ const Connect = memo(() => {
 
   const inviteCode = useMemo(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const invite = urlParams.get('invite');
-    return invite || undefined;
+    const fromUrl = urlParams.get('invite');
+    const fromSwitch = getSessionStorageItem(SessionStorageKey.PENDING_INVITE);
+
+    return fromUrl || fromSwitch || undefined;
   }, []);
 
   const onConnectClick = useCallback(async () => {
@@ -87,6 +96,11 @@ const Connect = memo(() => {
 
       setSessionStorageItem(SessionStorageKey.TOKEN, data.token);
       setLocalStorageItemBool(LocalStorageKey.AUTO_LOGIN, values.autoLogin);
+      upsertSavedHost({
+        host: getHostFromServer(),
+        token: data.token
+      });
+      removeSessionStorageItem(SessionStorageKey.PENDING_INVITE);
 
       if (values.autoLogin) {
         setLocalStorageItem(LocalStorageKey.AUTO_LOGIN_TOKEN, data.token);
@@ -117,24 +131,27 @@ const Connect = memo(() => {
       return getFileUrl(info.logo);
     }
 
-    return '/logo.webp';
+    return '/kurier-logo.png';
   }, [info]);
 
   return (
-    <div className="flex flex-col gap-2 justify-center items-center h-full relative">
-      <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50">
+    <div className="relative flex h-full flex-col items-center justify-center bg-sidebar">
+      <div className="fixed bottom-4 right-4 z-50 sm:bottom-6 sm:right-6">
         <LanguageSwitcher variant="icon" />
       </div>
-      <Card className="w-full max-w-sm">
+      <Card className="w-full max-w-[420px] border-border bg-sidebar shadow-2xl">
         <CardHeader>
-          <CardTitle className="flex flex-col items-center gap-2 text-center">
+          <CardTitle className="flex flex-col items-center gap-3 text-center">
             <img
               src={logoSrc}
-              alt="Sharkord"
-              className="block max-h-32 max-w-full rounded-[5px]"
+              alt="Kurier"
+              className="block max-h-20 max-w-full rounded-2xl"
             />
+            <span className="text-2xl font-bold leading-tight">
+              {t('welcomeBack')}
+            </span>
             {info?.name && (
-              <span className="text-xl font-bold leading-tight">
+              <span className="text-sm font-normal text-muted-foreground">
                 {info.name}
               </span>
             )}
@@ -195,8 +212,7 @@ const Connect = memo(() => {
             )}
 
             <Button
-              className="w-full"
-              variant="outline"
+              className="h-12 w-full"
               onClick={onConnectClick}
               disabled={loading || !values.identity || !values.password}
               data-testid={TestId.CONNECT_BUTTON}
@@ -231,20 +247,11 @@ const Connect = memo(() => {
       <div className="flex justify-center items-center gap-2 text-xs text-muted-foreground select-none">
         <span>v{VITE_APP_VERSION}</span>
         <a
-          href="https://github.com/sharkord/sharkord"
+          href="https://github.com/rf4burns/brozantine-sharkord-server"
           target="_blank"
           rel="noopener noreferrer"
         >
           GitHub
-        </a>
-
-        <a
-          className="text-xs"
-          href="https://sharkord.com"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Sharkord
         </a>
       </div>
     </div>

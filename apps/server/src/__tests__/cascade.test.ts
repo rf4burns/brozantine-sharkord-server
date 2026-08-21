@@ -70,7 +70,7 @@ describe('database cascades', async () => {
     expect(messagesAfter.length).toBe(1); // only the DM message from setup should remain
   });
 
-  test('deleting a user cascades to messages, logins, invites, activity logs', async () => {
+  test('deleting a user cascades to messages, logins, invites, and nulls activity logs', async () => {
     const usersBefore = await tdb.select().from(users);
     const userId = usersBefore[0]!.id;
 
@@ -109,7 +109,8 @@ describe('database cascades', async () => {
 
     expect(loginsAfter.length).toBe(0);
     expect(invitesAfter.length).toBe(0);
-    expect(activityLogAfter.length).toBe(0);
+    expect(activityLogAfter.length).toBe(activityLogBefore.length);
+    expect(activityLogAfter.every((row) => row.userId === null)).toBe(true);
     expect(messagesAfter.length).toBe(1); // only the DM message from setup should remain
   });
 

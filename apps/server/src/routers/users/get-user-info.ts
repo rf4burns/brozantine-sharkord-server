@@ -1,4 +1,8 @@
-import { Permission, type TLogin } from '@sharkord/shared';
+import {
+  Permission,
+  USER_ADMIN_VIEW_PERMISSIONS,
+  type TLogin
+} from '@kurier/shared';
 import z from 'zod';
 import { getFilesByUserId } from '../../db/queries/files';
 import { getLastLogins } from '../../db/queries/logins';
@@ -17,7 +21,7 @@ const getUserInfoRoute = protectedProcedure
     })
   )
   .query(async ({ ctx, input }) => {
-    await ctx.needsPermission(Permission.MANAGE_USERS);
+    await ctx.needsAnyPermission(USER_ADMIN_VIEW_PERMISSIONS);
 
     const user = await getUserById(input.userId);
 

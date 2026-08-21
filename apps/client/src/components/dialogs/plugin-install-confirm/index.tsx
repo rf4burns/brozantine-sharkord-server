@@ -7,7 +7,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle
-} from '@sharkord/ui';
+} from '@kurier/ui';
 import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TDialogBaseProps } from '../types';
@@ -82,19 +82,19 @@ const PluginInstallConfirmDialog = memo(
               </p>
             </div>
 
-            <p className="text-sm text-primary">
+            <p className="text-sm text-foreground">
               {t('pluginInstallUseDocker')}
             </p>
 
             <p className="text-sm">
               {t('pluginInstallDocsNote')}{' '}
               <a
-                href="https://sharkord.com/docs/plugins/security"
+                href="https://github.com/rf4burns/brozantine-sharkord-server/blob/HEAD/packages/plugin-sdk/README.md"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="underline hover:text-primary transition-colors"
               >
-                https://sharkord.com/docs/plugins/security
+                Plugin SDK README
               </a>
             </p>
           </div>

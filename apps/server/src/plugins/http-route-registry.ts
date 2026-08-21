@@ -1,7 +1,7 @@
 import type {
   TPluginHttpMethod,
   TPluginHttpRouteHandler
-} from '@sharkord/plugin-sdk';
+} from '@kurier/plugin-sdk';
 import { hasPrefixPathSegment, isSupportedHttpMethod } from '../http/helpers';
 import type { PluginLogger } from './plugin-logger';
 

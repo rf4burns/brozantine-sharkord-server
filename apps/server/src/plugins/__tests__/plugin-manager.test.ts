@@ -1,4 +1,4 @@
-import { FileSaveType, type TInvokerContext } from '@sharkord/shared';
+import { FileSaveType, type TInvokerContext } from '@kurier/shared';
 import { beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import { eq } from 'drizzle-orm';
 import fs from 'fs/promises';
@@ -967,6 +967,25 @@ export { onLoad, onUnload };
       );
 
       expect((result as Record<string, number>).messageCreated).toBe(1);
+    });
+
+    test('should fire user:left handlers when a leave event is emitted', async () => {
+      await pluginManager.load('plugin-with-events');
+
+      await eventBus.emit('user:left', {
+        userId: 1,
+        username: 'alice',
+        reason: 'disconnect'
+      });
+
+      const result = await pluginManager.executeCommand(
+        'plugin-with-events',
+        'get-counts',
+        mockInvokerCtx,
+        {}
+      );
+
+      expect((result as Record<string, number>).userLeft).toBe(1);
     });
 
     test('should not fire events after plugin is unloaded', async () => {

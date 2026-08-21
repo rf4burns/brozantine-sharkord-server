@@ -1,4 +1,4 @@
-import { useChannelCan } from '@/features/server/hooks';
+import { useCan, useChannelCan } from '@/features/server/hooks';
 import { leaveVoice } from '@/features/server/voice/actions';
 import {
   useAlwaysShowVoiceControls,
@@ -6,8 +6,8 @@ import {
   useVoice
 } from '@/features/server/voice/hooks';
 import { cn } from '@/lib/utils';
-import { ChannelPermission } from '@sharkord/shared';
-import { Button, Tooltip } from '@sharkord/ui';
+import { ChannelPermission, Permission } from '@kurier/shared';
+import { Button, Tooltip } from '@kurier/ui';
 import {
   HeadphoneOff,
   Headphones,
@@ -36,15 +36,19 @@ const ControlsBar = memo(({ channelId }: TControlsBarProps) => {
   } = useVoice();
   const ownVoiceState = useOwnVoiceState();
   const channelCan = useChannelCan(channelId);
+  const can = useCan();
   const alwaysShowControls = useAlwaysShowVoiceControls();
 
   const permissions = useMemo(
     () => ({
       canSpeak: channelCan(ChannelPermission.SPEAK),
-      canWebcam: channelCan(ChannelPermission.WEBCAM),
-      canShareScreen: channelCan(ChannelPermission.SHARE_SCREEN)
+      canWebcam:
+        can(Permission.ENABLE_WEBCAM) && channelCan(ChannelPermission.WEBCAM),
+      canShareScreen:
+        can(Permission.SHARE_SCREEN) &&
+        channelCan(ChannelPermission.SHARE_SCREEN)
     }),
-    [channelCan]
+    [can, channelCan]
   );
 
   const barClass = alwaysShowControls
@@ -73,7 +77,12 @@ const ControlsBar = memo(({ channelId }: TControlsBarProps) => {
           disabledIcon={Mic}
           enabledClassName="bg-red-500/20 text-red-500 hover:bg-red-500/30 hover:text-red-500"
           onClick={toggleMic}
-          disabled={!permissions.canSpeak || ownVoiceState.soundMuted}
+          disabled={
+            !permissions.canSpeak ||
+            ownVoiceState.soundMuted ||
+            ownVoiceState.serverMuted ||
+            ownVoiceState.serverDeafened
+          }
         />
 
         <ControlToggleButton
@@ -84,6 +93,7 @@ const ControlsBar = memo(({ channelId }: TControlsBarProps) => {
           disabledIcon={Headphones}
           enabledClassName="bg-red-500/20 text-red-500 hover:bg-red-500/30 hover:text-red-500"
           onClick={toggleSound}
+          disabled={ownVoiceState.serverDeafened}
         />
 
         <div className="h-8 border-r-2 border-border" />

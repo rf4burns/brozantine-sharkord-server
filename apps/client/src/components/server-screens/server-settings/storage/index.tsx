@@ -1,5 +1,7 @@
 import { closeServerScreens } from '@/features/server-screens/actions';
 import { useAdminStorage } from '@/features/server/admin/hooks';
+import { getUrlFromServer } from '@/helpers/get-file-url';
+import { SessionStorageKey, getSessionStorageItem } from '@/helpers/storage';
 import {
   STORAGE_MAX_AVATAR_SIZE,
   STORAGE_MAX_BANNER_SIZE,
@@ -15,8 +17,9 @@ import {
   STORAGE_MIN_QUOTA,
   STORAGE_MIN_QUOTA_PER_USER,
   STORAGE_MIN_SIGNED_URLS_TTL_SECONDS,
-  StorageOverflowAction
-} from '@sharkord/shared';
+  StorageOverflowAction,
+  UploadHeaders
+} from '@kurier/shared';
 import {
   Button,
   Card,
@@ -35,9 +38,10 @@ import {
   Separator,
   Slider,
   Switch
-} from '@sharkord/ui';
-import { memo } from 'react';
+} from '@kurier/ui';
+import { memo, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { DiskMetrics } from './metrics';
 import {
   MAX_AVATAR_SIZE_PRESETS,
@@ -52,6 +56,56 @@ import { StorageSizeControl } from './storage-size-control';
 
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(value, max));
+
+const BackupDownloadButton = memo(() => {
+  const { t } = useTranslation('settings');
+  const [downloading, setDownloading] = useState(false);
+
+  const onDownload = useCallback(async () => {
+    setDownloading(true);
+
+    try {
+      const token = getSessionStorageItem(SessionStorageKey.TOKEN) ?? '';
+      const response = await fetch(`${getUrlFromServer()}/backup`, {
+        headers: {
+          [UploadHeaders.TOKEN]: token
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const disposition = response.headers.get('content-disposition');
+      const filenameMatch = disposition?.match(/filename="([^"]+)"/);
+
+      link.href = objectUrl;
+      link.download = filenameMatch?.[1] ?? 'sharkord-backup.zip';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      toast.error(t('downloadBackupFailed'));
+    } finally {
+      setDownloading(false);
+    }
+  }, [t]);
+
+  return (
+    <Button
+      type="button"
+      variant="secondary"
+      disabled={downloading}
+      onClick={onDownload}
+    >
+      {downloading ? t('downloadBackupDownloading') : t('downloadBackupButton')}
+    </Button>
+  );
+});
 
 const Storage = memo(() => {
   const { t } = useTranslation('settings');
@@ -70,6 +124,13 @@ const Storage = memo(() => {
       </CardHeader>
       <CardContent className="space-y-4">
         <DiskMetrics diskMetrics={diskMetrics!} />
+
+        <Group
+          label={t('downloadBackupLabel')}
+          description={t('downloadBackupDesc')}
+        >
+          <BackupDownloadButton />
+        </Group>
 
         <Group
           label={t('allowUploadsLabel')}

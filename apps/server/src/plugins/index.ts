@@ -5,7 +5,7 @@ import type {
   TPluginHttpMethod,
   TPluginHttpRouteHandler,
   UnloadPluginContext
-} from '@sharkord/plugin-sdk';
+} from '@kurier/plugin-sdk';
 import {
   CLIENT_ENTRY_FILE,
   getErrorMessage,
@@ -19,7 +19,7 @@ import {
   type TPluginInfo,
   type TPluginManifest,
   type TPluginMetadata
-} from '@sharkord/shared';
+} from '@kurier/shared';
 import { eq } from 'drizzle-orm';
 import fs from 'fs/promises';
 import path from 'path';
@@ -710,6 +710,9 @@ class PluginManager {
         },
         getPublicUsers: async () => {
           return getPublicUsers();
+        },
+        listChannels: async () => {
+          return db.select().from(channels);
         }
       }
     };

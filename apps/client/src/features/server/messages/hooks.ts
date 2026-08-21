@@ -1,6 +1,6 @@
 import type { IRootState } from '@/features/store';
 import { getTRPCClient } from '@/lib/trpc';
-import { DEFAULT_MESSAGES_LIMIT, type TJoinedMessage } from '@sharkord/shared';
+import { DEFAULT_MESSAGES_LIMIT, type TJoinedMessage } from '@kurier/shared';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { addMessages, addThreadMessages, clearThreadMessages } from './actions';
@@ -73,7 +73,7 @@ const useGroupedMessages = (messages: TJoinedMessage[]) =>
       const currentDate = message.createdAt;
       const timeDifference = Math.abs(currentDate - lastDate) / 1000 / 60;
 
-      if (timeDifference < 1) {
+      if (timeDifference < 5) {
         lastGroup.messages.push(message);
 
         continue;

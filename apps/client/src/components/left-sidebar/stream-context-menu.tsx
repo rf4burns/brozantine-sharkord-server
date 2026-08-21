@@ -4,13 +4,15 @@ import {
   Button,
   ContextMenu,
   ContextMenuContent,
+  ContextMenuSeparator,
   ContextMenuTrigger,
   Slider
-} from '@sharkord/ui';
+} from '@kurier/ui';
 import { Router, Volume2, VolumeX } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { MemberVoiceModeration } from '../member-voice-moderation';
 
 type TUserContextMenuProps = {
   type: 'user';
@@ -109,6 +111,12 @@ const StreamContextMenu = (props: TStreamContextMenuProps) => {
             <span className="text-xs text-muted-foreground">{volume}%</span>
           </div>
         </div>
+        {props.type === 'user' && (
+          <>
+            <ContextMenuSeparator />
+            <MemberVoiceModeration userId={props.userId} variant="menu" />
+          </>
+        )}
       </ContextMenuContent>
     </ContextMenu>
   );

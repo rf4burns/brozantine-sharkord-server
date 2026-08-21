@@ -7,7 +7,7 @@ import {
   STORAGE_MAX_QUOTA_PER_USER,
   STORAGE_MIN_QUOTA_PER_USER,
   type TJoinedRole
-} from '@sharkord/shared';
+} from '@kurier/shared';
 import {
   Alert,
   AlertDescription,
@@ -21,7 +21,7 @@ import {
   Separator,
   Switch,
   Tooltip
-} from '@sharkord/ui';
+} from '@kurier/ui';
 import { filesize } from 'filesize';
 import { Info, Star, Trash2 } from 'lucide-react';
 import { memo, useCallback } from 'react';
@@ -44,6 +44,7 @@ const UpdateRole = memo(
       name: selectedRole.name,
       color: selectedRole.color,
       permissions: selectedRole.permissions,
+      hoist: selectedRole.hoist,
       storageQuotaOverrideEnabled: selectedRole.storageQuotaOverrideEnabled,
       storageSpaceQuota: selectedRole.storageSpaceQuota
     });
@@ -167,6 +168,21 @@ const UpdateRole = memo(
                 <Input className="flex-1" {...r('color')} />
               </div>
             </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-4">
+            <div className="space-y-1">
+              <Label htmlFor="role-hoist">{t('roleHoistLabel')}</Label>
+              <p className="text-sm text-muted-foreground">
+                {t('roleHoistDesc')}
+              </p>
+            </div>
+            <Switch
+              id="role-hoist"
+              checked={!!values.hoist}
+              disabled={selectedRole.isDefault}
+              onCheckedChange={(checked) => onChange('hoist', checked)}
+            />
           </div>
 
           <PermissionList

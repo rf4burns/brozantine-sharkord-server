@@ -11,7 +11,7 @@ import {
   DialogTitle,
   Input,
   Spinner
-} from '@sharkord/ui';
+} from '@kurier/ui';
 import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearch } from './hooks';

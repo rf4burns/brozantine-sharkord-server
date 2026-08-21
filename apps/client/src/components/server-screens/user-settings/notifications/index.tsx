@@ -18,7 +18,7 @@ import {
   CardTitle,
   Group,
   Switch
-} from '@sharkord/ui';
+} from '@kurier/ui';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 

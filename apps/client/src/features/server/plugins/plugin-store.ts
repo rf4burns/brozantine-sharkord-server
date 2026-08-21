@@ -4,8 +4,8 @@ import type {
   TPluginActions,
   TPluginStore,
   TPluginStoreState
-} from '@sharkord/shared';
-import { prepareMessageHtml } from '@sharkord/shared';
+} from '@kurier/shared';
+import { prepareMessageHtml } from '@kurier/shared';
 import { setSelectedChannelId } from '../channels/actions';
 
 // I honestly can't tell if this is a genius or disgusting, I'm in shock
@@ -70,7 +70,7 @@ const pluginStore: TPluginStore = {
 };
 
 const exposePluginStore = () => {
-  window.__SHARKORD_STORE__ = pluginStore;
+  window.__KURIER_STORE__ = pluginStore;
 };
 
 export { exposePluginStore, pluginActions, pluginStore };

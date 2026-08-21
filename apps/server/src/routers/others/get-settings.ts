@@ -1,4 +1,4 @@
-import { Permission } from '@sharkord/shared';
+import { Permission } from '@kurier/shared';
 import { getSettings } from '../../db/queries/server';
 import { clearFields } from '../../helpers/clear-fields';
 import { protectedProcedure } from '../../utils/trpc';

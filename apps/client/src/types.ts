@@ -1,4 +1,4 @@
-import type { StreamKind, TStreamQuality } from '@sharkord/shared';
+import type { StreamKind, TStreamQuality } from '@kurier/shared';
 
 export type TDevices = {
   input: {
@@ -48,6 +48,19 @@ export enum NoiseSuppression {
   DTLN = 'dtln'
 }
 
+export enum VoiceInputMode {
+  VAD = 'vad',
+  PTT = 'ptt'
+}
+
+export type TPttKeybind = {
+  code: string;
+  ctrl?: boolean;
+  alt?: boolean;
+  shift?: boolean;
+  meta?: boolean;
+};
+
 export type TDeviceSettings = {
   microphoneId: string | undefined;
   playbackId: string | undefined;
@@ -59,6 +72,11 @@ export type TDeviceSettings = {
   autoGainControl: boolean;
   noiseGateEnabled: boolean;
   noiseGateThresholdDb: number;
+  inputMode: VoiceInputMode;
+  pttKeybind: TPttKeybind;
+  attenuationEnabled: boolean;
+  attenuationPercent: number;
+  skipVoiceDeviceCheck: boolean;
   shareSystemAudio: boolean;
   restrictOwnAudio: boolean;
   suppressLocalAudioPlayback: boolean;

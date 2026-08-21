@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
-import { Permission } from '@sharkord/shared';
-import { Badge } from '@sharkord/ui';
+import { Permission } from '@kurier/shared';
+import { Badge } from '@kurier/ui';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 

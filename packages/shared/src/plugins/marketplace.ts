@@ -1,8 +1,6 @@
-// const MARKETPLACE_REGISTRY_URL =
-//   'https://cdn.jsdelivr.net/gh/Sharkord/plugins@latest/plugins.json';
-
+// kurier plugin registry; swap this url when a live plugins repo exists
 const MARKETPLACE_REGISTRY_URL =
-  'https://raw.githubusercontent.com/Sharkord/plugins/refs/heads/main/plugins.json?raw=true';
+  'https://raw.githubusercontent.com/rf4burns/kurier-plugins/refs/heads/main/plugins.json?raw=true';
 
 type TMarketplacePlugin = {
   id: string;

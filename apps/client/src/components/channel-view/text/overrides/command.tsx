@@ -1,4 +1,4 @@
-import { type TParsedDomCommand } from '@sharkord/shared';
+import { type TParsedDomCommand } from '@kurier/shared';
 import {
   CheckCircle2,
   ChevronDown,
@@ -58,7 +58,7 @@ const CommandOverride = memo(({ command }: TCommandOverrideProps) => {
   return (
     <OverrideLayout>
       <div className="flex gap-3 rounded-lg border border-border bg-muted/50 px-3 py-2.5">
-        <div className="flex size-8 shrink-0 items-center justify-center rounded text-primary">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded text-foreground">
           {command.logo ? (
             <img
               src={command.logo}

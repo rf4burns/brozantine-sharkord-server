@@ -3,7 +3,7 @@ import {
   DELETED_USER_IDENTITY_AND_NAME,
   sha256,
   type TJoinedUser
-} from '@sharkord/shared';
+} from '@kurier/shared';
 import chalk from 'chalk';
 import { eq, isNull, max, sql } from 'drizzle-orm';
 import http from 'http';
@@ -60,7 +60,7 @@ let dummyArgon2HashPromise: Promise<string> | null = null;
 const getDummyArgon2Hash = (): Promise<string> => {
   if (!dummyArgon2HashPromise) {
     dummyArgon2HashPromise = Bun.password
-      .hash('sharkord-dummy-password-for-timing')
+      .hash('kurier-dummy-password-for-timing')
       .catch((error) => {
         dummyArgon2HashPromise = null;
         throw error;
@@ -90,7 +90,7 @@ const registerUser = async (
   const user = await db
     .insert(users)
     .values({
-      name: `SharkordUser${randomNum}`,
+      name: `KurierUser${randomNum}`,
       identity,
       createdAt: Date.now(),
       password: hashedPassword
@@ -271,6 +271,10 @@ const loginRouteHandler = async (
     );
 
     throw new HttpValidationError('identity', GENERIC_LOGIN_ERROR);
+  }
+
+  if (existingUser.deleted) {
+    throw new HttpValidationError('identity', 'This account has been deleted');
   }
 
   if (existingUser.banned) {

@@ -1,28 +1,26 @@
-import { setModViewOpen, setSelectedDmChannelId } from '@/features/app/actions';
-import { setDmsOpen } from '@/features/server/actions';
+import { setModViewOpen } from '@/features/app/actions';
+import { openDirectMessage } from '@/features/hosts/actions';
 import { usePublicServerSettings, useUserRoles } from '@/features/server/hooks';
 import { useIsOwnUser, useUserById } from '@/features/server/users/hooks';
 import { getFileUrl } from '@/helpers/get-file-url';
 import { getRenderedUsername } from '@/helpers/get-rendered-username';
 import { useDateLocale } from '@/hooks/use-date-locale';
-import { getTRPCClient } from '@/lib/trpc';
 import {
-  DELETED_USER_IDENTITY_AND_NAME,
-  Permission,
-  UserStatus,
-  getTrpcError
-} from '@sharkord/shared';
+  isDeletedUser,
+  USER_MODERATION_PERMISSIONS,
+  UserStatus
+} from '@kurier/shared';
 import {
   IconButton,
   Popover,
   PopoverContent,
   PopoverTrigger
-} from '@sharkord/ui';
+} from '@kurier/ui';
 import { format } from 'date-fns';
 import { MessageSquare, ShieldCheck, Trash, UserCog } from 'lucide-react';
 import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { toast } from 'sonner';
+import { MemberVoiceModeration } from '../member-voice-moderation';
 import { Protect } from '../protect';
 import { RoleBadge } from '../role-badge';
 import { UserAvatar } from '../user-avatar';
@@ -42,99 +40,119 @@ const UserPopover = memo(({ userId, children }: TUserPopoverProps) => {
   const isOwnUser = useIsOwnUser(userId);
 
   const onDirectMessageClick = useCallback(async () => {
-    const trpc = getTRPCClient();
+    if (!user) return;
 
-    try {
-      const result = await trpc.dms.open.mutate({ userId });
-
-      setDmsOpen(true);
-      setSelectedDmChannelId(result.channelId);
-    } catch (error) {
-      toast.error(getTrpcError(error, t('couldNotOpenDM')));
-    }
-  }, [userId, t]);
+    await openDirectMessage(user);
+  }, [user]);
 
   if (!user) return <>{children}</>;
 
-  const isDeleted = user.name === DELETED_USER_IDENTITY_AND_NAME;
+  const isDeleted = isDeletedUser(user);
   const showDmButton =
     settings?.directMessagesEnabled && !isDeleted && !isOwnUser;
+  const displayName = getRenderedUsername(user);
 
   return (
     <Popover>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="start" side="right">
+      <PopoverContent
+        className="w-[340px] overflow-hidden border-border bg-rail p-0"
+        align="start"
+        side="right"
+      >
         <div className="relative">
-          {user.banned && (
-            <div className="absolute right-2 top-2 bg-red-500 text-white text-xs px-2 py-1 rounded-md flex items-center gap-1">
-              <ShieldCheck className="h-3 w-3" />
-              {t('bannedBadge')}
-            </div>
-          )}
-          {isDeleted && (
-            <div className="absolute right-2 top-2 bg-gray-600 text-white text-xs px-2 py-1 rounded-md flex items-center gap-1">
+          {isDeleted ? (
+            <div className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-md bg-gray-600 px-2 py-1 text-xs text-white">
               <Trash className="h-3 w-3" />
               {t('deletedBadge')}
             </div>
+          ) : (
+            user.banned && (
+              <div className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-md bg-red-500 px-2 py-1 text-xs text-white">
+                <ShieldCheck className="h-3 w-3" />
+                {t('bannedBadge')}
+              </div>
+            )
           )}
           {user.banner ? (
             <div
-              className="h-24 w-full rounded-t-md bg-cover bg-center bg-no-repeat"
+              className="h-[120px] w-full bg-cover bg-center bg-no-repeat"
               style={{
                 backgroundImage: `url("${getFileUrl(user.banner)}")`
               }}
             />
           ) : (
             <div
-              className="h-24 w-full rounded-t-md"
+              className="h-[120px] w-full"
               style={{
                 background: user.profileColor || '#5865f2'
               }}
             />
           )}
-          <div className="absolute left-4 top-16">
-            <UserAvatar
-              userId={user.id}
-              className="h-16 w-16 border-4 border-card"
-              showStatusBadge={false}
-            />
+          <div className="absolute left-4 top-[72px]">
+            <div className="rounded-full bg-rail p-1">
+              <UserAvatar
+                userId={user.id}
+                className="h-20 w-20"
+                showStatusBadge={false}
+              />
+            </div>
+            <div className="absolute bottom-1 right-1">
+              <UserStatusBadge
+                status={user.status || UserStatus.OFFLINE}
+                className="h-4 w-4 border-[3px] border-rail"
+              />
+            </div>
           </div>
         </div>
 
-        <div className="px-4 pt-12 pb-4">
-          <div className="mb-3">
-            <span className="text-lg font-semibold text-foreground truncate mb-1">
-              {getRenderedUsername(user)}
-            </span>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2">
-                <UserStatusBadge
-                  status={user.status || UserStatus.OFFLINE}
-                  className="h-3 w-3"
-                />
-                <span className="text-xs text-muted-foreground capitalize">
-                  {user.status || UserStatus.OFFLINE}
-                </span>
-              </div>
+        <div className="space-y-3 px-4 pb-4 pt-12">
+          <div>
+            <div
+              className={`truncate text-xl font-bold leading-6 ${
+                isDeleted
+                  ? 'text-muted-foreground line-through'
+                  : 'text-foreground'
+              }`}
+            >
+              {displayName}
             </div>
+            <div className="truncate text-sm text-muted-foreground">
+              @{user.name}
+              {user.pronouns ? ` · ${user.pronouns}` : ''}
+            </div>
+            {user.statusMessage && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                {user.statusMessage}
+              </p>
+            )}
           </div>
 
-          {roles.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {roles.map((role) => (
-                <RoleBadge key={role.id} role={role} />
-              ))}
-            </div>
-          )}
-
           {user.bio && (
-            <div className="mt-3">
-              <p className="text-sm text-foreground leading-relaxed">
+            <div>
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-wide text-faint">
+                {t('aboutMe')}
+              </div>
+              <p className="text-sm leading-relaxed text-foreground">
                 {user.bio}
               </p>
             </div>
           )}
-          <div className="flex justify-between items-center mt-4 pt-3 border-t border-border">
+
+          {roles.length > 0 && (
+            <div>
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-wide text-faint">
+                {t('rolesHeader', { count: roles.length })}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {roles.map((role) => (
+                  <RoleBadge key={role.id} role={role} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between border-t border-border pt-3">
             <p className="text-xs text-muted-foreground">
               {t('memberSince', {
                 date: format(new Date(user.createdAt), 'PP', {
@@ -143,7 +161,7 @@ const UserPopover = memo(({ userId, children }: TUserPopoverProps) => {
               })}
             </p>
 
-            <div className="flex gap-2 items-center">
+            <div className="flex items-center gap-2">
               {showDmButton && (
                 <IconButton
                   icon={MessageSquare}
@@ -154,17 +172,19 @@ const UserPopover = memo(({ userId, children }: TUserPopoverProps) => {
                 />
               )}
 
-              {
-                <Protect permission={Permission.MANAGE_USERS}>
-                  <IconButton
-                    icon={UserCog}
-                    variant="ghost"
-                    size="sm"
-                    title={t('moderationView')}
-                    onClick={() => setModViewOpen(true, user.id)}
-                  />
-                </Protect>
-              }
+              {!isDeleted && (
+                <MemberVoiceModeration userId={userId} variant="icons" />
+              )}
+
+              <Protect permission={USER_MODERATION_PERMISSIONS}>
+                <IconButton
+                  icon={UserCog}
+                  variant="ghost"
+                  size="sm"
+                  title={t('moderationView')}
+                  onClick={() => setModViewOpen(true, user.id)}
+                />
+              </Protect>
             </div>
           </div>
         </div>

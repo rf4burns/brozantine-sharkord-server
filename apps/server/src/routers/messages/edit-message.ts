@@ -1,17 +1,21 @@
 import {
+  ActivityLogType,
   Permission,
   getPlainTextFromHtml,
   isEmptyMessage
-} from '@sharkord/shared';
+} from '@kurier/shared';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { config } from '../../config';
 import { db } from '../../db';
 import { publishMessage } from '../../db/publishers';
+import { isDirectMessageChannel } from '../../db/queries/dms';
 import { messages } from '../../db/schema';
 import { assertChannelAccess } from '../../helpers/assert-channel-access';
+import { stripEveryoneMentions } from '../../helpers/everyone-mentions';
 import { sanitizeMessageHtml } from '../../helpers/sanitize-html';
 import { eventBus } from '../../plugins/event-bus';
+import { enqueueActivityLog } from '../../queues/activity-log';
 import { enqueueProcessMetadata } from '../../queues/message-metadata';
 import { invariant } from '../../utils/invariant';
 import { protectedProcedure, rateLimitedProcedure } from '../../utils/trpc';
@@ -74,10 +78,24 @@ const editMessageRoute = rateLimitedProcedure(protectedProcedure, {
         'Your message only contained unsupported or removed content, so there was nothing to send.'
     });
 
+    const isDmChannel = await isDirectMessageChannel(message.channelId);
+
+    let targetContent = sanitizedContent;
+
+    if (!isDmChannel) {
+      const canMentionEveryone = await ctx.hasPermission(
+        Permission.MENTION_EVERYONE
+      );
+
+      if (!canMentionEveryone) {
+        targetContent = stripEveryoneMentions(targetContent);
+      }
+    }
+
     await db
       .update(messages)
       .set({
-        content: sanitizedContent,
+        content: targetContent,
         updatedAt: Date.now(),
         editedAt: Date.now(),
         editedBy: ctx.user.id
@@ -85,16 +103,35 @@ const editMessageRoute = rateLimitedProcedure(protectedProcedure, {
       .where(eq(messages.id, input.messageId));
 
     publishMessage(input.messageId, message.channelId, 'update');
-    enqueueProcessMetadata(sanitizedContent, input.messageId);
+
+    const canEmbedLinks =
+      isDmChannel || (await ctx.hasPermission(Permission.EMBED_LINKS));
+
+    if (canEmbedLinks) {
+      enqueueProcessMetadata(targetContent, input.messageId);
+    }
 
     eventBus.emit('message:updated', {
       messageId: input.messageId,
       channelId: message.channelId,
       userId: message.userId,
       pluginId: message.pluginId,
-      content: sanitizedContent,
-      textContent: getPlainTextFromHtml(sanitizedContent)
+      content: targetContent,
+      textContent: getPlainTextFromHtml(targetContent)
     });
+
+    if (message.userId !== ctx.user.id) {
+      enqueueActivityLog({
+        type: ActivityLogType.MESSAGE_EDITED,
+        userId: ctx.userId,
+        details: {
+          messageId: input.messageId,
+          channelId: message.channelId,
+          authorId: message.userId,
+          editedBy: ctx.user.id
+        }
+      });
+    }
   });
 
 export { editMessageRoute };

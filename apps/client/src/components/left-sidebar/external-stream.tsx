@@ -1,12 +1,15 @@
+import { useAudioLevel } from '@/components/channel-view/voice/hooks/use-audio-level';
 import { useStreamVolumeControl } from '@/components/voice-provider/hooks/use-stream-volume-control';
-import type { TExternalStreamTracks } from '@sharkord/shared';
-import { Tooltip } from '@sharkord/ui';
+import { useVoice } from '@/features/server/voice/hooks';
+import type { TExternalStreamTracks } from '@kurier/shared';
+import { cn, Tooltip } from '@kurier/ui';
 import { Headphones, Router, Video, VolumeX } from 'lucide-react';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StreamContextMenu } from './stream-context-menu';
 
 type TExternalStreamProps = {
+  streamId: number;
   title: string;
   tracks?: TExternalStreamTracks;
   pluginId?: string;
@@ -17,6 +20,7 @@ type TExternalStreamProps = {
 
 const ExternalStream = memo(
   ({
+    streamId,
     title,
     tracks,
     pluginId,
@@ -27,6 +31,10 @@ const ExternalStream = memo(
     const { t } = useTranslation('sidebar');
     const hasVideo = tracks?.video;
     const hasAudio = tracks?.audio;
+    const { externalStreams } = useVoice();
+    const { isSpeaking, speakingEffectClass } = useAudioLevel(
+      externalStreams[streamId]?.audioStream
+    );
 
     const { isMuted } = useStreamVolumeControl({
       type: 'external',
@@ -48,10 +56,18 @@ const ExternalStream = memo(
             <img
               src={avatarUrl}
               alt={title}
-              className="h-5 w-5 rounded object-cover"
+              className={cn(
+                'h-5 w-5 rounded object-cover',
+                isSpeaking && speakingEffectClass
+              )}
             />
           ) : (
-            <Router className="h-5 w-5 text-muted-foreground opacity-60" />
+            <Router
+              className={cn(
+                'h-5 w-5 text-muted-foreground opacity-60',
+                isSpeaking && speakingEffectClass
+              )}
+            />
           )}
         </Tooltip>
 

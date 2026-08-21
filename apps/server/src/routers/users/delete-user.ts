@@ -4,55 +4,17 @@ import {
   DisconnectCode,
   Permission,
   ServerEvents
-} from '@sharkord/shared';
+} from '@kurier/shared';
 import { eq } from 'drizzle-orm';
 import z from 'zod';
 import { db } from '../../db';
 import { publishUser } from '../../db/publishers';
-import { getUserByIdentity } from '../../db/queries/users';
-import {
-  emojis,
-  files,
-  messageReactions,
-  messages,
-  users
-} from '../../db/schema';
+import { emojis, messageReactions, messages, users } from '../../db/schema';
+import { assertCanModerateUser } from '../../helpers/role-hierarchy';
 import { enqueueActivityLog } from '../../queues/activity-log';
 import { invariant } from '../../utils/invariant';
 import { pubsub } from '../../utils/pubsub';
 import { protectedProcedure } from '../../utils/trpc';
-
-const ensureDeletedUser = async (): Promise<number> => {
-  const existingDeletedUser = await getUserByIdentity(
-    DELETED_USER_IDENTITY_AND_NAME
-  );
-
-  if (existingDeletedUser) {
-    return existingDeletedUser.id;
-  }
-
-  const insertedDeletedUser = await db
-    .insert(users)
-    .values({
-      identity: DELETED_USER_IDENTITY_AND_NAME,
-      password: Bun.randomUUIDv7(),
-      name: DELETED_USER_IDENTITY_AND_NAME,
-      avatarId: null,
-      bannerId: null,
-      bio: null,
-      createdAt: Date.now()
-    })
-    .returning({ id: users.id })
-    .get();
-
-  if (!insertedDeletedUser) {
-    throw new Error('Failed to create deleted user placeholder');
-  }
-
-  await publishUser(insertedDeletedUser.id, 'create');
-
-  return insertedDeletedUser.id;
-};
 
 const deleteUserRoute = protectedProcedure
   .input(
@@ -62,19 +24,21 @@ const deleteUserRoute = protectedProcedure
     })
   )
   .mutation(async ({ ctx, input }) => {
-    await ctx.needsPermission(Permission.MANAGE_USERS);
+    await ctx.needsPermission(Permission.DELETE_USERS);
 
     invariant(input.userId !== ctx.user.id, {
       code: 'BAD_REQUEST',
       message: 'You cannot delete yourself.'
     });
 
+    await assertCanModerateUser(ctx.userId, input.userId);
+
     const targetUser = await db
       .select({
         id: users.id,
         identity: users.identity,
-        avatarId: users.avatarId,
-        bannerId: users.bannerId
+        name: users.name,
+        deleted: users.deleted
       })
       .from(users)
       .where(eq(users.id, input.userId))
@@ -90,56 +54,56 @@ const deleteUserRoute = protectedProcedure
       message: 'Cannot delete the deleted user placeholder.'
     });
 
+    invariant(!targetUser.deleted, {
+      code: 'BAD_REQUEST',
+      message: 'User is already deleted.'
+    });
+
     const userWs = ctx.getUserWs(input.userId);
 
     if (userWs) {
-      userWs.close(DisconnectCode.KICKED, 'Your account has been deleted');
+      userWs.close(DisconnectCode.DELETED, 'Your account has been deleted');
     }
 
-    const deletedUserId = await ensureDeletedUser();
+    const now = Date.now();
 
     await db.transaction(async (tx) => {
-      if (!input.wipe) {
-        // Reassign everything to deleted user placeholder
-
+      if (input.wipe) {
+        await tx.delete(messages).where(eq(messages.userId, input.userId));
+        await tx.delete(emojis).where(eq(emojis.userId, input.userId));
         await tx
-          .update(messages)
-          .set({ userId: deletedUserId })
-          .where(eq(messages.userId, input.userId));
-
-        await tx
-          .update(emojis)
-          .set({ userId: deletedUserId })
-          .where(eq(emojis.userId, input.userId));
-
-        await tx
-          .update(messageReactions)
-          .set({ userId: deletedUserId })
+          .delete(messageReactions)
           .where(eq(messageReactions.userId, input.userId));
-
-        await tx
-          .update(files)
-          .set({ userId: deletedUserId })
-          .where(eq(files.userId, input.userId));
-      } else {
-        // cascade will handle deleting all related data
       }
 
-      await tx.delete(users).where(eq(users.id, input.userId));
+      await tx
+        .update(users)
+        .set({
+          deleted: true,
+          deletedAt: now,
+          banned: true,
+          bannedAt: now,
+          banReason: 'Account deleted'
+        })
+        .where(eq(users.id, input.userId));
     });
+
+    await publishUser(input.userId, 'update');
 
     pubsub.publish(ServerEvents.USER_DELETE, {
       isWipe: input.wipe,
-      userId: input.userId,
-      deletedUserId
+      userId: input.userId
     });
 
     enqueueActivityLog({
       type: ActivityLogType.USER_DELETED,
-      userId: input.userId,
+      userId: ctx.userId,
       details: {
         reason: 'Your account has been deleted',
-        deletedBy: ctx.userId
+        deletedBy: ctx.userId,
+        targetUserId: input.userId,
+        targetUsername: targetUser.name,
+        wipe: input.wipe
       }
     });
   });

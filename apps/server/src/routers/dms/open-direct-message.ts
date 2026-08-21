@@ -1,4 +1,4 @@
-import { ChannelType, ServerEvents } from '@sharkord/shared';
+import { ChannelType, ServerEvents } from '@kurier/shared';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { config } from '../../config';
@@ -36,14 +36,15 @@ const openDirectMessageRoute = rateLimitedProcedure(protectedProcedure, {
     const targetUser = await db
       .select({
         id: users.id,
-        banned: users.banned
+        banned: users.banned,
+        deleted: users.deleted
       })
       .from(users)
       .where(eq(users.id, input.userId))
       .limit(1)
       .get();
 
-    invariant(targetUser && !targetUser.banned, {
+    invariant(targetUser && !targetUser.banned && !targetUser.deleted, {
       code: 'NOT_FOUND',
       message: 'User not found'
     });

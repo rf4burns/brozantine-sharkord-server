@@ -2,13 +2,15 @@ import {
   ChannelPermission,
   OWNER_ROLE_ID,
   type TChannel,
+  type TChannelNotificationOverridesMap,
   type TChannelUserPermissionsMap,
   type TReadStateMap
-} from '@sharkord/shared';
+} from '@kurier/shared';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '..';
 import { getOnlineUserIds } from '../../utils/wss';
 import {
+  channelNotificationOverrides,
   channelReadStates,
   channelRolePermissions,
   channels,
@@ -499,11 +501,32 @@ const getChannelsReadStatesForUser = async (
   return readStateMap;
 };
 
+const getChannelNotificationOverridesForUser = async (
+  userId: number
+): Promise<TChannelNotificationOverridesMap> => {
+  const rows = await db
+    .select({
+      channelId: channelNotificationOverrides.channelId,
+      level: channelNotificationOverrides.level
+    })
+    .from(channelNotificationOverrides)
+    .where(eq(channelNotificationOverrides.userId, userId));
+
+  const overrides: TChannelNotificationOverridesMap = {};
+
+  for (const row of rows) {
+    overrides[row.channelId] = row.level;
+  }
+
+  return overrides;
+};
+
 export {
   channelUserCan,
   getAffectedOnlineUserIdsForChannel,
   getAffectedUserIdsForChannel,
   getAllChannelUserPermissions,
+  getChannelNotificationOverridesForUser,
   getChannelsForUser,
   getChannelsReadStatesForUser,
   getRoleChannelPermissions,

@@ -19,7 +19,7 @@ import {
   type TIRole,
   type TISettings,
   type TIUser
-} from '@sharkord/shared';
+} from '@kurier/shared';
 import { randomUUIDv7 } from 'bun';
 import chalk from 'chalk';
 import { logger } from '../logger';
@@ -47,9 +47,9 @@ const seedDatabase = async () => {
   const originalToken = IS_DEVELOPMENT ? 'dev' : randomUUIDv7();
 
   const initialSettings: TISettings = {
-    name: 'sharkord Server',
+    name: 'Kurier',
     description:
-      'This is the default Sharkord server description. Change me in the server settings!',
+      'This is the default Kurier server description. Change me in the server settings!',
     password: '',
     onlyAskForPasswordOnFirstJoin: false,
     serverId: Bun.randomUUIDv7(),
@@ -131,6 +131,8 @@ const seedDatabase = async () => {
       color: '#FFFFFF',
       isDefault: false,
       isPersistent: true,
+      position: 1,
+      hoist: false,
       storageQuotaOverrideEnabled: false,
       storageSpaceQuota: 0,
       createdAt: firstStart
@@ -140,6 +142,8 @@ const seedDatabase = async () => {
       color: '#FFFFFF',
       isPersistent: true,
       isDefault: true,
+      position: 0,
+      hoist: false,
       storageQuotaOverrideEnabled: false,
       storageSpaceQuota: 0,
       createdAt: firstStart
@@ -149,11 +153,11 @@ const seedDatabase = async () => {
   const initialUsers: TIUser[] = [
     {
       identity: await sha256(randomUUIDv7()),
-      name: 'Sharkord',
+      name: 'Kurier',
       avatarId: null,
-      password: 'sharkord',
+      password: 'kurier',
       bannerId: null,
-      bio: 'Hey, I am Sharkord!',
+      bio: 'Hey, I am Kurier!',
       createdAt: firstStart
     }
   ];
@@ -161,7 +165,7 @@ const seedDatabase = async () => {
   const initialMessages: TIMessage[] = [
     {
       channelId: 1,
-      content: '<p>Welcome to sharkord!</p>',
+      content: '<p>Welcome to Kurier!</p>',
       metadata: null,
       userId: 1,
       createdAt: firstStart

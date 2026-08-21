@@ -1,7 +1,9 @@
-import { ChannelPermission, ChannelType } from '@sharkord/shared';
+import { ChannelPermission, ChannelType, Permission } from '@kurier/shared';
 import { describe, expect, test } from 'bun:test';
 import { initTest } from '../../__tests__/helpers';
+import { tdb } from '../../__tests__/setup';
 import { getChannelsReadStatesForUser } from '../../db/queries/channels';
+import { rolePermissions } from '../../db/schema';
 
 describe('channels router', () => {
   test('should throw when user lacks permissions (add)', async () => {
@@ -1025,5 +1027,157 @@ describe('channels router', () => {
         roleId: 1
       })
     ).rejects.toThrow('Cannot delete DM channel permissions');
+  });
+
+  test('should update voice channel status', async () => {
+    const { caller } = await initTest();
+
+    await caller.channels.updateVoiceStatus({
+      channelId: 2,
+      topic: 'Playing games'
+    });
+
+    const channel = await caller.channels.get({ channelId: 2 });
+
+    expect(channel.topic).toBe('Playing games');
+  });
+
+  test('should clear voice channel status', async () => {
+    const { caller } = await initTest();
+
+    await caller.channels.updateVoiceStatus({
+      channelId: 2,
+      topic: null
+    });
+
+    const channel = await caller.channels.get({ channelId: 2 });
+
+    expect(channel.topic).toBeNull();
+  });
+
+  test('should throw when user lacks voice status permission', async () => {
+    const { caller } = await initTest(2);
+
+    await expect(
+      caller.channels.updateVoiceStatus({
+        channelId: 2,
+        topic: 'Not allowed'
+      })
+    ).rejects.toThrow('Insufficient permissions');
+  });
+
+  test('should throw when voice status channel is not found', async () => {
+    const { caller } = await initTest();
+
+    await expect(
+      caller.channels.updateVoiceStatus({
+        channelId: 99999,
+        topic: 'Missing'
+      })
+    ).rejects.toThrow('Channel not found');
+  });
+
+  test('should throw when setting status on a text channel', async () => {
+    const { caller } = await initTest();
+
+    await expect(
+      caller.channels.updateVoiceStatus({
+        channelId: 1,
+        topic: 'Not a voice channel'
+      })
+    ).rejects.toThrow('Status can only be set on voice channels');
+  });
+
+  test('should throw when user cannot view the voice channel', async () => {
+    const { caller: admin } = await initTest();
+
+    await admin.channels.add({
+      type: ChannelType.VOICE,
+      name: 'secret-voice',
+      categoryId: 2
+    });
+
+    await admin.channels.update({
+      channelId: 5,
+      private: true
+    });
+
+    await tdb.insert(rolePermissions).values({
+      roleId: 2,
+      permission: Permission.SET_VOICE_CHANNEL_STATUS,
+      createdAt: Date.now()
+    });
+
+    const { caller } = await initTest(2);
+
+    await expect(
+      caller.channels.updateVoiceStatus({
+        channelId: 5,
+        topic: 'Cannot see this'
+      })
+    ).rejects.toThrow('Insufficient channel permissions');
+  });
+
+  test('should persist a channel notification override and return it on join', async () => {
+    const { caller } = await initTest();
+
+    const result = await caller.channels.setNotificationOverride({
+      channelId: 1,
+      level: 'nothing'
+    });
+
+    expect(result).toEqual({ channelId: 1, level: 'nothing' });
+
+    await caller.channels.markAsRead({ channelId: 1 });
+
+    const readStates = await getChannelsReadStatesForUser(1);
+
+    expect(readStates[1]).toBe(0);
+
+    const { handshakeHash } = await caller.others.handshake();
+    const joined = await caller.others.joinServer({ handshakeHash });
+
+    expect(joined.notificationOverrides[1]).toBe('nothing');
+  });
+
+  test('should delete the override row when level is all', async () => {
+    const { caller } = await initTest();
+
+    await caller.channels.setNotificationOverride({
+      channelId: 1,
+      level: 'mentions'
+    });
+
+    await caller.channels.setNotificationOverride({
+      channelId: 1,
+      level: 'all'
+    });
+
+    const { handshakeHash } = await caller.others.handshake();
+    const joined = await caller.others.joinServer({ handshakeHash });
+
+    expect(joined.notificationOverrides[1]).toBeUndefined();
+  });
+
+  test('should reject notification override for a channel the user cannot view', async () => {
+    const { caller } = await initTest(2);
+
+    await expect(
+      caller.channels.setNotificationOverride({
+        channelId: 4,
+        level: 'nothing'
+      })
+    ).rejects.toThrow('Insufficient channel permissions');
+  });
+
+  test('should reject an invalid notification override level', async () => {
+    const { caller } = await initTest();
+
+    await expect(
+      caller.channels.setNotificationOverride({
+        channelId: 1,
+        level: 'loud' as 'all'
+      })
+    ).rejects.toThrow();
   });
 });

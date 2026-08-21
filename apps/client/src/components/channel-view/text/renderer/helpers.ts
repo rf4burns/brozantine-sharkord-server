@@ -1,4 +1,5 @@
-import type { TJoinedMessage } from '@sharkord/shared';
+import type { TJoinedMessage } from '@kurier/shared';
+import { isEmbeddableGifUrl, isGifProviderPage } from './gif-urls';
 import type {
   TFoundMedia,
   TFoundOpenGraph,
@@ -101,6 +102,18 @@ const extractMessageOpenGraph = (
       }
 
       if (!metadataEntry.url || hasSpecializedLinkOverride(metadataEntry.url)) {
+        return undefined;
+      }
+
+      if (isEmbeddableGifUrl(metadataEntry.url)) {
+        return undefined;
+      }
+
+      const hasGifMedia = media.some(
+        (item) => item.type === 'image' && isEmbeddableGifUrl(item.url)
+      );
+
+      if (hasGifMedia && isGifProviderPage(metadataEntry.url)) {
         return undefined;
       }
 

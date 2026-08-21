@@ -1,4 +1,4 @@
-import { getErrorMessage, UploadHeaders } from '@sharkord/shared';
+import { getErrorMessage, UploadHeaders } from '@kurier/shared';
 import fs from 'fs';
 import http from 'http';
 import z from 'zod';

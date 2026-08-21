@@ -1,9 +1,10 @@
 import { Dialog } from '@/components/dialogs/dialogs';
 import { logDebug } from '@/helpers/browser-logger';
 import { getHostFromServer } from '@/helpers/get-file-url';
+import { cacheHostMembers } from '@/helpers/host-members';
 import { cleanup, connectToTRPC, getTRPCClient } from '@/lib/trpc';
 import type { TMessageJumpToTarget } from '@/types';
-import { type TPublicServerSettings, type TServerInfo } from '@sharkord/shared';
+import { type TPublicServerSettings, type TServerInfo } from '@kurier/shared';
 import { toast } from 'sonner';
 import { appSliceActions } from '../app/slice';
 import { openDialog } from '../dialogs/actions';
@@ -17,7 +18,7 @@ import {
   setPluginCommands,
   setPluginComponents
 } from './plugins/actions';
-import { infoSelector } from './selectors';
+import { infoSelector, mentionUnreadByChannelSelector } from './selectors';
 import { serverSliceActions } from './slice';
 import { type TDisconnectInfo } from './types';
 
@@ -100,6 +101,7 @@ export const joinServer = async (handshakeHash: string, password?: string) => {
   unsubscribeFromServer = initSubscriptions();
 
   store.dispatch(serverSliceActions.setInitialData(data));
+  cacheHostMembers(getHostFromServer(), data.users);
 
   setPluginCommands(data.commands);
 
@@ -146,8 +148,9 @@ export const markChannelAsRead = (
 ) => {
   const state = store.getState();
   const unreadCount = channelReadStateByIdSelector(state, channelId);
+  const mentionUnread = mentionUnreadByChannelSelector(state, channelId);
 
-  if (!force && unreadCount === 0) {
+  if (!force && unreadCount === 0 && mentionUnread === 0) {
     return;
   }
 
@@ -157,6 +160,10 @@ export const markChannelAsRead = (
     );
   }
 
+  if (mentionUnread > 0) {
+    store.dispatch(serverSliceActions.clearMentionUnread(channelId));
+  }
+
   const trpc = getTRPCClient();
 
   try {
@@ -164,6 +171,10 @@ export const markChannelAsRead = (
   } catch {
     // ignore errors
   }
+};
+
+export const incrementMentionUnread = (channelId: number) => {
+  store.dispatch(serverSliceActions.incrementMentionUnread(channelId));
 };
 
 window.useToken = async (token: string) => {

@@ -6,6 +6,8 @@ export type { ConsumerType } from 'mediasoup/types';
 export type TVoiceUserState = {
   micMuted: boolean;
   soundMuted: boolean;
+  serverMuted: boolean;
+  serverDeafened: boolean;
   webcamEnabled: boolean;
   sharingScreen: boolean;
 };
@@ -13,7 +15,10 @@ export type TVoiceUserState = {
 export type TVoiceUser = {
   userId: number;
   state: TVoiceUserState;
+  joinedAt: number;
 };
+
+export type TVoiceMapUser = TVoiceUserState & { joinedAt: number };
 
 export type TExternalStream = {
   title: string;
@@ -26,6 +31,7 @@ export type TExternalStream = {
 
 export type TChannelState = {
   users: TVoiceUser[];
+  occupiedSince: number | null;
   externalStreams: { [streamId: number]: TExternalStream };
 };
 
@@ -38,8 +44,9 @@ export type TTransportParams = {
 
 export type TVoiceMap = {
   [channelId: number]: {
+    occupiedSince: number | null;
     users: {
-      [userId: number]: TVoiceUserState;
+      [userId: number]: TVoiceMapUser;
     };
   };
 };

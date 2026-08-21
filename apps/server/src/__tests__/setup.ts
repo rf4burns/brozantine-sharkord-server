@@ -75,7 +75,7 @@ beforeEach(async () => {
   tdb = drizzle({ client: sqlite });
 
   // updates the mocked db to use this new test database
-  setTestDb(tdb);
+  setTestDb(tdb, sqlite);
 
   // apply migrations and seed data for this test
   await migrate(tdb, { migrationsFolder: DRIZZLE_PATH });

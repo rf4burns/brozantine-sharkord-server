@@ -1,4 +1,4 @@
-import { Permission } from '@sharkord/shared';
+import { OWNER_ROLE_ID, Permission } from '@kurier/shared';
 import { describe, expect, test } from 'bun:test';
 import { initTest } from '../../__tests__/helpers';
 
@@ -28,6 +28,7 @@ describe('roles router', () => {
         name: 'Updated Role',
         color: '#ff0000',
         permissions: [Permission.SEND_MESSAGES],
+        hoist: false,
         storageQuotaOverrideEnabled: false,
         storageSpaceQuota: 0
       })
@@ -95,6 +96,7 @@ describe('roles router', () => {
       name: 'Updated Role Name',
       color: '#ff5500',
       permissions: [Permission.SEND_MESSAGES, Permission.UPLOAD_FILES],
+      hoist: false,
       storageQuotaOverrideEnabled: false,
       storageSpaceQuota: 0
     });
@@ -122,6 +124,7 @@ describe('roles router', () => {
       name: 'Storage Role',
       color: '#336699',
       permissions: [Permission.UPLOAD_FILES],
+      hoist: false,
       storageQuotaOverrideEnabled: true,
       storageSpaceQuota: 1024 * 1024 * 1024
     });
@@ -145,6 +148,7 @@ describe('roles router', () => {
         name: 'Invalid Storage Role',
         color: '#336699',
         permissions: [Permission.UPLOAD_FILES],
+        hoist: false,
         storageQuotaOverrideEnabled: true,
         storageSpaceQuota: -1
       })
@@ -159,6 +163,7 @@ describe('roles router', () => {
       name: 'Owner',
       color: '#ff0000',
       permissions: [Permission.SEND_MESSAGES],
+      hoist: false,
       storageQuotaOverrideEnabled: false,
       storageSpaceQuota: 0
     });
@@ -267,6 +272,7 @@ describe('roles router', () => {
       name: 'No Permissions Role',
       color: '#000000',
       permissions: [],
+      hoist: false,
       storageQuotaOverrideEnabled: false,
       storageSpaceQuota: 0
     });
@@ -295,6 +301,7 @@ describe('roles router', () => {
       name: 'Multi Permission Role',
       color: '#00ff00',
       permissions,
+      hoist: false,
       storageQuotaOverrideEnabled: false,
       storageSpaceQuota: 0
     });
@@ -307,5 +314,96 @@ describe('roles router', () => {
     permissions.forEach((perm) => {
       expect(role!.permissions).toContain(perm);
     });
+  });
+
+  test('should persist hoist on a non-default role', async () => {
+    const { caller } = await initTest();
+    const roleId = await caller.roles.add();
+
+    await caller.roles.update({
+      roleId,
+      name: 'Hoisted Role',
+      color: '#abcdef',
+      permissions: [],
+      hoist: true,
+      storageQuotaOverrideEnabled: false,
+      storageSpaceQuota: 0
+    });
+
+    const roles = await caller.roles.getAll();
+    const role = roles.find((r) => r.id === roleId);
+
+    expect(role?.hoist).toBe(true);
+  });
+
+  test('should ignore hoist on the default role', async () => {
+    const { caller } = await initTest();
+
+    await caller.roles.update({
+      roleId: 2,
+      name: 'Member',
+      color: '#99aab5',
+      permissions: [Permission.SEND_MESSAGES],
+      hoist: true,
+      storageQuotaOverrideEnabled: false,
+      storageSpaceQuota: 0
+    });
+
+    const roles = await caller.roles.getAll();
+    const defaultRole = roles.find((role) => role.isDefault);
+
+    expect(defaultRole?.hoist).toBe(false);
+  });
+
+  test('should reorder roles below the owner and above the default role', async () => {
+    const { caller } = await initTest();
+    const newRoleId = await caller.roles.add();
+
+    await caller.roles.reorder({
+      roleIds: [OWNER_ROLE_ID, newRoleId, 3, 2]
+    });
+
+    const roles = await caller.roles.getAll();
+
+    expect(roles.map((role) => role.id)).toEqual([
+      OWNER_ROLE_ID,
+      newRoleId,
+      3,
+      2
+    ]);
+    expect(roles[0]?.position).toBeGreaterThan(roles[1]!.position);
+    expect(roles[roles.length - 1]?.isDefault).toBe(true);
+  });
+
+  test('should reject reordering that moves the owner role', async () => {
+    const { caller } = await initTest();
+
+    await expect(
+      caller.roles.reorder({
+        roleIds: [3, OWNER_ROLE_ID, 2]
+      })
+    ).rejects.toThrow('The owner role must stay at the top of the hierarchy.');
+  });
+
+  test('should reject reordering that moves the default role', async () => {
+    const { caller } = await initTest();
+
+    await expect(
+      caller.roles.reorder({
+        roleIds: [OWNER_ROLE_ID, 2, 3]
+      })
+    ).rejects.toThrow(
+      'The default role must stay at the bottom of the hierarchy.'
+    );
+  });
+
+  test('should throw when user lacks permissions (reorder)', async () => {
+    const { caller } = await initTest(2);
+
+    await expect(
+      caller.roles.reorder({
+        roleIds: [OWNER_ROLE_ID, 3, 2]
+      })
+    ).rejects.toThrow('Insufficient permissions');
   });
 });

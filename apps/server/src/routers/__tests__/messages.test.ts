@@ -1,4 +1,4 @@
-import { ChannelPermission, Permission } from '@sharkord/shared';
+import { ChannelPermission, Permission } from '@kurier/shared';
 import { describe, expect, test } from 'bun:test';
 import { and, eq } from 'drizzle-orm';
 import { initTest, uploadFile } from '../../__tests__/helpers';
@@ -6,6 +6,7 @@ import { tdb } from '../../__tests__/setup';
 import {
   files,
   messageFiles,
+  messages,
   rolePermissions,
   settings
 } from '../../db/schema';
@@ -2095,5 +2096,171 @@ describe('messages router', () => {
         files: [uploaded.id]
       })
     ).rejects.toThrow('File uploads are disabled on this server');
+  });
+
+  test('should reject file attachments without UPLOAD_FILES', async () => {
+    const { caller, mockedToken } = await initTest(2);
+
+    await tdb
+      .delete(rolePermissions)
+      .where(
+        and(
+          eq(rolePermissions.roleId, 2),
+          eq(rolePermissions.permission, Permission.UPLOAD_FILES)
+        )
+      )
+      .execute();
+
+    const file = new File(['no upload perm'], 'blocked.txt', {
+      type: 'text/plain'
+    });
+    const uploadResponse = await uploadFile(file, mockedToken);
+    const uploaded = (await uploadResponse.json()) as { id: string };
+
+    await expect(
+      caller.messages.send({
+        channelId: 1,
+        content: 'hello with file',
+        files: [uploaded.id]
+      })
+    ).rejects.toThrow('Insufficient permissions');
+
+    const messageId = await caller.messages.send({
+      channelId: 1,
+      content: 'text only is fine',
+      files: []
+    });
+
+    expect(messageId).toBeGreaterThan(0);
+  });
+
+  test('should strip @everyone mentions without MENTION_EVERYONE', async () => {
+    const { caller } = await initTest(2);
+    const content =
+      '<p><span data-type="mention" data-mention-kind="everyone" class="mention">@everyone</span></p>';
+
+    const messageId = await caller.messages.send({
+      channelId: 1,
+      content,
+      files: []
+    });
+
+    const result = await caller.messages.get({
+      channelId: 1,
+      cursor: null,
+      limit: 50
+    });
+    const sent = result.messages.find((message) => message.id === messageId);
+
+    expect(sent?.content).toContain('@everyone');
+    expect(sent?.content).not.toContain('data-mention-kind="everyone"');
+  });
+
+  test('should keep @everyone mentions when the author has MENTION_EVERYONE', async () => {
+    const { caller } = await initTest();
+    const content =
+      '<p><span data-type="mention" data-mention-kind="everyone" class="mention">@everyone</span></p>';
+
+    const messageId = await caller.messages.send({
+      channelId: 1,
+      content,
+      files: []
+    });
+
+    const result = await caller.messages.get({
+      channelId: 1,
+      cursor: null,
+      limit: 50
+    });
+    const sent = result.messages.find((message) => message.id === messageId);
+
+    expect(sent?.content).toContain('data-mention-kind="everyone"');
+  });
+
+  test('should keep @everyone mentions in direct messages without the permission', async () => {
+    const { caller } = await initTest(3);
+    const content =
+      '<p><span data-type="mention" data-mention-kind="everyone" class="mention">@everyone</span></p>';
+
+    const messageId = await caller.messages.send({
+      channelId: 3,
+      content,
+      files: []
+    });
+
+    const result = await caller.messages.get({
+      channelId: 3,
+      cursor: null,
+      limit: 50
+    });
+    const sent = result.messages.find((message) => message.id === messageId);
+
+    expect(sent?.content).toContain('data-mention-kind="everyone"');
+  });
+
+  test('should not enqueue link metadata without EMBED_LINKS', async () => {
+    await tdb
+      .delete(rolePermissions)
+      .where(
+        and(
+          eq(rolePermissions.roleId, 2),
+          eq(rolePermissions.permission, Permission.EMBED_LINKS)
+        )
+      );
+
+    const { caller } = await initTest(2);
+    const messageId = await caller.messages.send({
+      channelId: 1,
+      content: '<p>https://example.com/photo.png</p>',
+      files: []
+    });
+
+    await Bun.sleep(200);
+
+    const row = await tdb
+      .select({ metadata: messages.metadata })
+      .from(messages)
+      .where(eq(messages.id, messageId))
+      .get();
+
+    expect(row?.metadata).toBeNull();
+  });
+
+  test('should still enqueue link metadata in direct messages without EMBED_LINKS', async () => {
+    await tdb
+      .delete(rolePermissions)
+      .where(
+        and(
+          eq(rolePermissions.roleId, 2),
+          eq(rolePermissions.permission, Permission.EMBED_LINKS)
+        )
+      );
+
+    const { caller } = await initTest(3);
+    const messageId = await caller.messages.send({
+      channelId: 3,
+      content: '<p>https://example.com/photo.png</p>',
+      files: []
+    });
+
+    let metadata = null;
+
+    for (let i = 0; i < 20; i++) {
+      const row = await tdb
+        .select({ metadata: messages.metadata })
+        .from(messages)
+        .where(eq(messages.id, messageId))
+        .get();
+
+      metadata = row?.metadata ?? null;
+
+      if (metadata) {
+        break;
+      }
+
+      await Bun.sleep(50);
+    }
+
+    expect(metadata).not.toBeNull();
   });
 });

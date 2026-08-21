@@ -1,5 +1,5 @@
 import { i18nReady } from '@/i18n';
-import { Toaster } from '@sharkord/ui';
+import { Toaster } from '@kurier/ui';
 import 'prosemirror-view/style/prosemirror.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -18,7 +18,6 @@ import { ThemeProvider } from './components/theme-provider/index.tsx';
 import { exposePluginStore } from './features/server/plugins/plugin-store.ts';
 import { store } from './features/store.ts';
 import { exposeLibs, exposeReact } from './helpers/exposes.ts';
-import { LocalStorageKey } from './helpers/storage.ts';
 import './index.css';
 
 exposeReact();
@@ -29,10 +28,7 @@ await i18nReady;
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ThemeProvider
-      defaultTheme="dark"
-      storageKey={LocalStorageKey.VITE_UI_THEME}
-    >
+    <ThemeProvider>
       <GlobalErrorBoundary>
         <DebugInfo />
         <Toaster />

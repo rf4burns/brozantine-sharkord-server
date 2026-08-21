@@ -1,4 +1,4 @@
-import { ActivityLogType } from '@sharkord/shared';
+import { ActivityLogType } from '@kurier/shared';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../../db';

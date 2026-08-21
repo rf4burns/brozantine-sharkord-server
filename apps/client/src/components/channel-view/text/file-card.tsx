@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
-import { FileCategory, getFileCategory } from '@sharkord/shared';
-import { Button } from '@sharkord/ui';
+import { FileCategory, getFileCategory } from '@kurier/shared';
+import { Button } from '@kurier/ui';
 import { filesize } from 'filesize';
 import {
   File,

@@ -1,4 +1,4 @@
-import type { TPluginHttpMethod } from '@sharkord/plugin-sdk';
+import type { TPluginHttpMethod } from '@kurier/plugin-sdk';
 import fs from 'fs';
 import http from 'http';
 import path from 'path';

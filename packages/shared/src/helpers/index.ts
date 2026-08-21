@@ -5,6 +5,7 @@ export * from './get-error-message';
 export * from './get-mediasoup-kind';
 export * from './get-random-string';
 export * from './has-mention';
+export * from './is-deleted-user';
 export * from './linkify-html';
 export * from './message-sanitizer';
 export * from './prepare-message-html';

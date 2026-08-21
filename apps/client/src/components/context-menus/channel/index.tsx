@@ -2,18 +2,28 @@ import { ServerScreen } from '@/components/server-screens/screens';
 import { openVoiceChatSidebar } from '@/features/app/actions';
 import { requestConfirmation } from '@/features/dialogs/actions';
 import { openServerScreen } from '@/features/server-screens/actions';
-import { useChannelById } from '@/features/server/channels/hooks';
+import { setChannelNotificationOverride } from '@/features/server/channels/actions';
+import {
+  useChannelById,
+  useChannelNotificationLevel
+} from '@/features/server/channels/hooks';
 import { useCan } from '@/features/server/hooks';
 import { getTRPCClient } from '@/lib/trpc';
-import { ChannelType, Permission } from '@sharkord/shared';
+import {
+  ChannelType,
+  Permission,
+  type TChannelNotificationLevel
+} from '@kurier/shared';
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuLabel,
+  ContextMenuRadioGroup,
+  ContextMenuRadioItem,
   ContextMenuSeparator,
   ContextMenuTrigger
-} from '@sharkord/ui';
+} from '@kurier/ui';
 import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -28,9 +38,14 @@ const ChannelContextMenu = memo(
     const { t } = useTranslation('sidebar');
     const can = useCan();
     const channel = useChannelById(channelId);
+    const notificationLevel = useChannelNotificationLevel(channelId);
 
-    const canManageChannels = can(Permission.MANAGE_CHANNELS);
-    const isVoiceChannel = channel?.type === ChannelType.VOICE;
+    const isDm = !!channel?.isDm;
+    const canManageChannels = can(Permission.MANAGE_CHANNELS) && !isDm;
+    const isVoiceChannel = channel?.type === ChannelType.VOICE && !isDm;
+    const canSetVoiceStatus =
+      !!isVoiceChannel &&
+      (canManageChannels || can(Permission.SET_VOICE_CHANNEL_STATUS));
 
     const onOpenChat = useCallback(() => {
       openVoiceChatSidebar(channelId);
@@ -61,9 +76,44 @@ const ChannelContextMenu = memo(
       openServerScreen(ServerScreen.CHANNEL_SETTINGS, { channelId });
     }, [channelId]);
 
-    if (!canManageChannels && !isVoiceChannel) {
-      return <>{children}</>;
-    }
+    const onSetStatusClick = useCallback(async () => {
+      const next = window.prompt(
+        t('setVoiceStatusPrompt'),
+        channel?.topic ?? ''
+      );
+
+      if (next === null) return;
+
+      const trpc = getTRPCClient();
+
+      try {
+        await trpc.channels.updateVoiceStatus.mutate({
+          channelId,
+          topic: next.trim() || null
+        });
+      } catch {
+        toast.error(t('failedSetVoiceStatus'));
+      }
+    }, [channel?.topic, channelId, t]);
+
+    const onNotificationLevelChange = useCallback(
+      async (value: string) => {
+        const level = value as TChannelNotificationLevel;
+        const trpc = getTRPCClient();
+
+        try {
+          const result = await trpc.channels.setNotificationOverride.mutate({
+            channelId,
+            level
+          });
+
+          setChannelNotificationOverride(result);
+        } catch {
+          toast.error(t('failedSetNotifications'));
+        }
+      },
+      [channelId, t]
+    );
 
     return (
       <ContextMenu>
@@ -71,14 +121,37 @@ const ChannelContextMenu = memo(
         <ContextMenuContent>
           <ContextMenuLabel>{channel?.name}</ContextMenuLabel>
           <ContextMenuSeparator />
+          <ContextMenuLabel>{t('notificationsLabel')}</ContextMenuLabel>
+          <ContextMenuRadioGroup
+            value={notificationLevel}
+            onValueChange={onNotificationLevelChange}
+          >
+            <ContextMenuRadioItem value="all">
+              {t('notificationAll')}
+            </ContextMenuRadioItem>
+            <ContextMenuRadioItem value="mentions">
+              {t('notificationMentions')}
+            </ContextMenuRadioItem>
+            <ContextMenuRadioItem value="nothing">
+              {t('notificationMute')}
+            </ContextMenuRadioItem>
+          </ContextMenuRadioGroup>
           {isVoiceChannel && (
-            <ContextMenuItem onClick={onOpenChat}>
-              {t('openChat')}
+            <>
+              <ContextMenuSeparator />
+              <ContextMenuItem onClick={onOpenChat}>
+                {t('openChat')}
+              </ContextMenuItem>
+            </>
+          )}
+          {canSetVoiceStatus && (
+            <ContextMenuItem onClick={onSetStatusClick}>
+              {t('setVoiceStatus')}
             </ContextMenuItem>
           )}
           {canManageChannels && (
             <>
-              {isVoiceChannel && <ContextMenuSeparator />}
+              <ContextMenuSeparator />
               <ContextMenuItem onClick={onEditClick}>
                 {t('editLabel')}
               </ContextMenuItem>

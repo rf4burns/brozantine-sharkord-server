@@ -1,4 +1,4 @@
-import { ServerEvents } from '@sharkord/shared';
+import { ServerEvents } from '@kurier/shared';
 import { protectedProcedure } from '../../utils/trpc';
 
 const onEmojiCreateRoute = protectedProcedure.subscription(async ({ ctx }) => {

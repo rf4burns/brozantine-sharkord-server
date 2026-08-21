@@ -4,7 +4,7 @@ import {
   Permission,
   ServerEvents,
   StreamKind
-} from '@sharkord/shared';
+} from '@kurier/shared';
 import { z } from 'zod';
 import { VoiceRuntime } from '../../runtimes/voice';
 import { invariant } from '../../utils/invariant';
@@ -34,29 +34,38 @@ const produceRoute = protectedProcedure
       message: 'User is not in a voice channel'
     });
 
-    if (input.kind === StreamKind.AUDIO) {
-      await ctx.needsChannelPermission(
-        ctx.currentVoiceChannelId,
-        ChannelPermission.SPEAK
-      );
-    } else if (input.kind === StreamKind.VIDEO) {
-      await ctx.needsChannelPermission(
-        ctx.currentVoiceChannelId,
-        ChannelPermission.WEBCAM
-      );
-    } else if (input.kind === StreamKind.SCREEN) {
-      await ctx.needsChannelPermission(
-        ctx.currentVoiceChannelId,
-        ChannelPermission.SHARE_SCREEN
-      );
-    }
-
     const runtime = VoiceRuntime.findById(ctx.currentVoiceChannelId);
 
     invariant(runtime, {
       code: 'INTERNAL_SERVER_ERROR',
       message: 'Voice runtime not found for this channel'
     });
+
+    if (input.kind === StreamKind.AUDIO) {
+      await ctx.needsChannelPermission(
+        ctx.currentVoiceChannelId,
+        ChannelPermission.SPEAK
+      );
+
+      const voiceState = runtime.getUserState(ctx.user.id);
+
+      invariant(!voiceState.serverMuted && !voiceState.serverDeafened, {
+        code: 'FORBIDDEN',
+        message: 'You cannot speak while server muted or deafened.'
+      });
+    } else if (input.kind === StreamKind.VIDEO) {
+      await ctx.needsPermission(Permission.ENABLE_WEBCAM);
+      await ctx.needsChannelPermission(
+        ctx.currentVoiceChannelId,
+        ChannelPermission.WEBCAM
+      );
+    } else if (input.kind === StreamKind.SCREEN) {
+      await ctx.needsPermission(Permission.SHARE_SCREEN);
+      await ctx.needsChannelPermission(
+        ctx.currentVoiceChannelId,
+        ChannelPermission.SHARE_SCREEN
+      );
+    }
 
     const producerTransport = runtime.getProducerTransport(ctx.user.id);
 

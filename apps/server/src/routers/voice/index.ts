@@ -21,6 +21,7 @@ import { joinVoiceRoute } from './join';
 import { leaveVoiceRoute } from './leave';
 import { moveUserRoute } from './move';
 import { produceRoute } from './produce';
+import { restartIceRoute } from './restart-ice';
 import { setConsumerQualityRoute } from './set-consumer-quality';
 import { updateVoiceStateRoute } from './update-state';
 
@@ -35,6 +36,7 @@ export const voiceRouter = t.router({
   connectConsumerTransport: connectConsumerTransportRoute,
   closeProducer: closeProducerRoute,
   produce: produceRoute,
+  restartIce: restartIceRoute,
   consume: consumeRoute,
   setConsumerQuality: setConsumerQualityRoute,
   getProducers: getProducersRoute,

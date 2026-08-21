@@ -2,7 +2,7 @@ import {
   type TJoinedPublicUser,
   type TJoinedUser,
   type TStorageData
-} from '@sharkord/shared';
+} from '@kurier/shared';
 import { count, eq, sum } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 import jwt from 'jsonwebtoken';
@@ -22,9 +22,14 @@ const getPublicUserById = async (
     .select({
       id: users.id,
       name: users.name,
+      nickname: users.nickname,
+      pronouns: users.pronouns,
+      statusMessage: users.statusMessage,
+      preferences: users.preferences,
       profileColor: users.profileColor,
       bio: users.bio,
       banned: users.banned,
+      deleted: users.deleted,
       avatarId: users.avatarId,
       bannerId: users.bannerId,
       avatar: avatarFiles,
@@ -52,6 +57,10 @@ const getPublicUserById = async (
   return {
     id: results.id,
     name: results.name,
+    nickname: results.nickname,
+    pronouns: results.pronouns,
+    statusMessage: results.statusMessage,
+    preferences: results.preferences,
     profileColor: results.profileColor,
     bio: results.bio,
     avatarId: results.avatarId,
@@ -68,6 +77,7 @@ const getPublicUserById = async (
     ),
     createdAt: results.createdAt,
     banned: results.banned,
+    deleted: results.deleted,
     roleIds: roles.map((r) => r.roleId)
   };
 };
@@ -86,9 +96,14 @@ const getPublicUsers = async (
       .select({
         id: users.id,
         name: users.name,
+        nickname: users.nickname,
+        pronouns: users.pronouns,
+        statusMessage: users.statusMessage,
+        preferences: users.preferences,
         profileColor: users.profileColor,
         bio: users.bio,
         banned: users.banned,
+        deleted: users.deleted,
         avatarId: users.avatarId,
         bannerId: users.bannerId,
         avatar: avatarFiles,
@@ -121,9 +136,14 @@ const getPublicUsers = async (
     return results.map((result) => ({
       id: result.id,
       name: result.name,
+      nickname: result.nickname,
+      pronouns: result.pronouns,
+      statusMessage: result.statusMessage,
+      preferences: result.preferences,
       profileColor: result.profileColor,
       bio: result.bio,
       banned: result.banned,
+      deleted: result.deleted,
       avatarId: result.avatarId,
       bannerId: result.bannerId,
       avatar: signFile(
@@ -145,7 +165,12 @@ const getPublicUsers = async (
       .select({
         id: users.id,
         name: users.name,
+        nickname: users.nickname,
+        pronouns: users.pronouns,
+        statusMessage: users.statusMessage,
+        preferences: users.preferences,
         banned: users.banned,
+        deleted: users.deleted,
         profileColor: users.profileColor,
         bio: users.bio,
         avatarId: users.avatarId,
@@ -180,7 +205,12 @@ const getPublicUsers = async (
     return results.map((result) => ({
       id: result.id,
       name: result.name,
+      nickname: result.nickname,
+      pronouns: result.pronouns,
+      statusMessage: result.statusMessage,
+      preferences: result.preferences,
       banned: result.banned,
+      deleted: result.deleted,
       profileColor: result.profileColor,
       bio: result.bio,
       avatarId: result.avatarId,
@@ -231,6 +261,10 @@ const getUserById = async (
       id: users.id,
       identity: users.identity,
       name: users.name,
+      nickname: users.nickname,
+      pronouns: users.pronouns,
+      statusMessage: users.statusMessage,
+      preferences: users.preferences,
       avatarId: users.avatarId,
       bannerId: users.bannerId,
       bio: users.bio,
@@ -240,8 +274,12 @@ const getUserById = async (
       updatedAt: users.updatedAt,
       lastLoginAt: users.lastLoginAt,
       banned: users.banned,
+      deleted: users.deleted,
+      deletedAt: users.deletedAt,
       banReason: users.banReason,
       bannedAt: users.bannedAt,
+      serverMuted: users.serverMuted,
+      serverDeafened: users.serverDeafened,
       avatar: avatarFiles,
       banner: bannerFiles
     })
@@ -290,6 +328,10 @@ const getUserByIdentity = async (
       id: users.id,
       identity: users.identity,
       name: users.name,
+      nickname: users.nickname,
+      pronouns: users.pronouns,
+      statusMessage: users.statusMessage,
+      preferences: users.preferences,
       avatarId: users.avatarId,
       bannerId: users.bannerId,
       bio: users.bio,
@@ -299,8 +341,12 @@ const getUserByIdentity = async (
       password: users.password,
       lastLoginAt: users.lastLoginAt,
       banned: users.banned,
+      deleted: users.deleted,
+      deletedAt: users.deletedAt,
       banReason: users.banReason,
       bannedAt: users.bannedAt,
+      serverMuted: users.serverMuted,
+      serverDeafened: users.serverDeafened,
       avatar: avatarFiles,
       banner: bannerFiles
     })
@@ -362,6 +408,10 @@ const getUsers = async (): Promise<TJoinedUser[]> => {
         .select({
           id: users.id,
           name: users.name,
+          nickname: users.nickname,
+          pronouns: users.pronouns,
+          statusMessage: users.statusMessage,
+          preferences: users.preferences,
           profileColor: users.profileColor,
           bio: users.bio,
           avatarId: users.avatarId,
@@ -372,8 +422,12 @@ const getUsers = async (): Promise<TJoinedUser[]> => {
           password: users.password,
           lastLoginAt: users.lastLoginAt,
           banned: users.banned,
+          deleted: users.deleted,
+          deletedAt: users.deletedAt,
           banReason: users.banReason,
           bannedAt: users.bannedAt,
+          serverMuted: users.serverMuted,
+          serverDeafened: users.serverDeafened,
           avatar: avatarFiles,
           banner: bannerFiles
         })
@@ -405,6 +459,10 @@ const getUsers = async (): Promise<TJoinedUser[]> => {
   return results.map((result) => ({
     id: result.id,
     name: result.name,
+    nickname: result.nickname,
+    pronouns: result.pronouns,
+    statusMessage: result.statusMessage,
+    preferences: result.preferences,
     profileColor: result.profileColor,
     bio: result.bio,
     avatarId: result.avatarId,
@@ -425,8 +483,12 @@ const getUsers = async (): Promise<TJoinedUser[]> => {
     password: result.password,
     lastLoginAt: result.lastLoginAt,
     banned: result.banned,
+    deleted: result.deleted,
+    deletedAt: result.deletedAt,
     banReason: result.banReason,
     bannedAt: result.bannedAt,
+    serverMuted: result.serverMuted,
+    serverDeafened: result.serverDeafened,
     roleIds: rolesMap[result.id] || []
   }));
 };

@@ -1,50 +1,54 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@sharkord/ui';
-import { memo } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TServerScreenBaseProps } from '../screens';
 import { ServerScreenLayout } from '../server-screen-layout';
+import { Appearance } from './appearance';
 import { Devices } from './devices';
 import { Notifications } from './notifications';
 import { Others } from './others';
 import { Password } from './password';
 import { Profile } from './profile';
+import { Sounds } from './sounds';
 
 type TUserSettingsProps = TServerScreenBaseProps;
 
 const UserSettings = memo(({ close }: TUserSettingsProps) => {
   const { t } = useTranslation('settings');
+  const [tab, setTab] = useState('profile');
+
+  const groups = useMemo(
+    () => [
+      {
+        label: t('userSettingsGroup'),
+        items: [
+          { id: 'profile', label: t('profileTab') },
+          { id: 'devices', label: t('devicesTab') },
+          { id: 'appearance', label: t('appearanceTab') },
+          { id: 'sounds', label: t('soundsTab') },
+          { id: 'notifications', label: t('notificationsTab') },
+          { id: 'password', label: t('passwordTab') },
+          { id: 'others', label: t('othersTab') }
+        ]
+      }
+    ],
+    [t]
+  );
 
   return (
-    <ServerScreenLayout close={close} title={t('userSettingsTitle')}>
-      <div className="mx-auto max-w-4xl">
-        <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="mb-6">
-            <TabsTrigger value="profile">{t('profileTab')}</TabsTrigger>
-            <TabsTrigger value="devices">{t('devicesTab')}</TabsTrigger>
-            <TabsTrigger value="password">{t('passwordTab')}</TabsTrigger>
-            <TabsTrigger value="notifications">
-              {t('notificationsTab')}
-            </TabsTrigger>
-            <TabsTrigger value="others">{t('othersTab')}</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="profile" className="space-y-6">
-            <Profile />
-          </TabsContent>
-          <TabsContent value="devices" className="space-y-6">
-            <Devices />
-          </TabsContent>
-          <TabsContent value="password" className="space-y-6">
-            <Password />
-          </TabsContent>
-          <TabsContent value="notifications" className="space-y-6">
-            <Notifications />
-          </TabsContent>
-          <TabsContent value="others" className="space-y-6">
-            <Others />
-          </TabsContent>
-        </Tabs>
-      </div>
+    <ServerScreenLayout
+      close={close}
+      title={t('userSettingsTitle')}
+      groups={groups}
+      value={tab}
+      onValueChange={setTab}
+    >
+      {tab === 'profile' && <Profile />}
+      {tab === 'devices' && <Devices />}
+      {tab === 'appearance' && <Appearance />}
+      {tab === 'sounds' && <Sounds />}
+      {tab === 'notifications' && <Notifications />}
+      {tab === 'password' && <Password />}
+      {tab === 'others' && <Others />}
     </ServerScreenLayout>
   );
 });

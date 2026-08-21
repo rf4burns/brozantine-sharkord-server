@@ -109,6 +109,17 @@ const sfxMessageReceived = () => {
   osc.stop(now() + 0.05);
 };
 
+const sfxMentionReceived = () => {
+  const osc = createOsc('sine', 880);
+  const gain = createGain(0.06);
+
+  gain.gain.exponentialRampToValueAtTime(0.0001, now() + 0.08);
+
+  osc.connect(gain).connect(audioCtx.destination);
+  osc.start();
+  osc.stop(now() + 0.08);
+};
+
 // MESSAGE_SENT — ultra-minimal single tone (slightly higher)
 const sfxMessageSent = () => {
   const osc = createOsc('sine', 750);
@@ -472,6 +483,8 @@ const playSound = async (type: SoundType) => {
     switch (type) {
       case SoundType.MESSAGE_RECEIVED:
         return sfxMessageReceived();
+      case SoundType.MENTION_RECEIVED:
+        return sfxMentionReceived();
       case SoundType.MESSAGE_SENT:
         return sfxMessageSent();
       case SoundType.SERVER_DISCONNECTED:

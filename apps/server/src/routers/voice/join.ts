@@ -3,12 +3,13 @@ import {
   ChannelType,
   Permission,
   ServerEvents
-} from '@sharkord/shared';
+} from '@kurier/shared';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { config } from '../../config';
 import { db } from '../../db';
-import { channels } from '../../db/schema';
+import { channels, users } from '../../db/schema';
+import { overlayServerVoiceFlags } from '../../helpers/server-voice-state';
 import { consumeVoiceMoveGrant } from '../../helpers/voice-move-grants';
 import { logger } from '../../logger';
 import { VoiceRuntime } from '../../runtimes/voice';
@@ -73,15 +74,38 @@ const joinVoiceRoute = rateLimitedProcedure(protectedProcedure, {
       message: 'Voice runtime not found for this channel'
     });
 
-    runtime.addUser(ctx.user.id, input.state);
+    const memberVoiceFlags = await db
+      .select({
+        serverMuted: users.serverMuted,
+        serverDeafened: users.serverDeafened
+      })
+      .from(users)
+      .where(eq(users.id, ctx.user.id))
+      .limit(1)
+      .get();
 
-    const state = runtime.getUserState(ctx.user.id);
+    runtime.addUser(
+      ctx.user.id,
+      overlayServerVoiceFlags(input.state, {
+        serverMuted: memberVoiceFlags?.serverMuted ?? false,
+        serverDeafened: memberVoiceFlags?.serverDeafened ?? false
+      })
+    );
+
+    const voiceUser = runtime.getUser(ctx.user.id);
+
+    invariant(voiceUser, {
+      code: 'INTERNAL_SERVER_ERROR',
+      message: 'Failed to join voice channel'
+    });
 
     ctx.currentVoiceChannelId = channel.id;
     ctx.pubsub.publish(ServerEvents.USER_JOIN_VOICE, {
       channelId: input.channelId,
       userId: ctx.user.id,
-      state
+      state: voiceUser.state,
+      joinedAt: voiceUser.joinedAt,
+      occupiedSince: runtime.getState().occupiedSince
     });
 
     logger.info('%s joined voice channel %s', ctx.user.name, channel.name);

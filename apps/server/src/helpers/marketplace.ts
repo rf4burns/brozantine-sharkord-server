@@ -2,7 +2,7 @@ import {
   MARKETPLACE_REGISTRY_URL,
   type TMarketplaceEntry,
   type TMarketplacePluginVersion
-} from '@sharkord/shared';
+} from '@kurier/shared';
 import { invariant } from '../utils/invariant';
 
 const fetchMarketplaceVersion = async (

@@ -1,20 +1,16 @@
+import { isDeletedUser, OWNER_ROLE_ID } from '@kurier/shared';
 import { createSelector } from '@reduxjs/toolkit';
-import { OWNER_ROLE_ID } from '@sharkord/shared';
 import { createCachedSelector } from 're-reselect';
 import type { IRootState } from '../store';
 import {
-  channelByIdSelector,
   channelPermissionsSelector,
-  channelReadStateByIdSelector,
   channelsByCategoryIdSelector,
   channelsReadStatesSelector,
   channelsSelector,
   currentVoiceChannelIdSelector
 } from './channels/selectors';
-import { canViewChannel, hasUnreadMentionInMessages } from './helpers';
+import { buildMemberListGroups, canViewChannel } from './helpers';
 import {
-  messagesByChannelIdSelector,
-  messagesMapSelector,
   threadTypingMapSelector,
   typingMapSelector
 } from './messages/selectors';
@@ -198,14 +194,17 @@ export const voiceUsersByChannelIdSelector = createSelector(
 
     if (!voiceState) return voiceUsers;
 
-    Object.entries(voiceState.users).forEach(([userIdStr, state]) => {
+    Object.entries(voiceState.users).forEach(([userIdStr, mapUser]) => {
       const userId = Number(userIdStr);
       const user = users.find((u) => u.id === userId);
 
       if (user) {
+        const { joinedAt, ...voiceUserState } = mapUser;
+
         voiceUsers.push({
           ...user,
-          state
+          state: voiceUserState,
+          joinedAt
         });
       }
     });
@@ -229,19 +228,27 @@ export const ownVoiceUserSelector = createSelector(
     voiceUsers?.find((voiceUser) => voiceUser.id === ownUserId)
 );
 
+export const mentionUnreadByChannelSelector = (
+  state: IRootState,
+  channelId: number
+) => state.server.mentionUnreadByChannel[channelId] ?? 0;
+
+export const mentionUnreadMapSelector = (state: IRootState) =>
+  state.server.mentionUnreadByChannel;
+
+export const mentionUnreadTotalSelector = createSelector(
+  [mentionUnreadMapSelector],
+  (mentionUnreadByChannel) =>
+    Object.values(mentionUnreadByChannel).reduce<number>(
+      (total, count) => total + (count ?? 0),
+      0
+    )
+);
+
 // this approach has some limitations but it should work for most cases
 export const hasUnreadMentionsSelector = createCachedSelector(
-  [
-    channelReadStateByIdSelector,
-    channelByIdSelector,
-    messagesByChannelIdSelector,
-    ownUserIdSelector
-  ],
-  (readState, channel, messages, ownUserId) => {
-    if (!channel || !messages) return false;
-
-    return hasUnreadMentionInMessages(readState, messages, ownUserId);
-  }
+  [mentionUnreadByChannelSelector],
+  (mentionUnread) => mentionUnread > 0
 )((_, channelId: number) => channelId);
 
 export const categoryUnreadMessagesCountSelector = createCachedSelector(
@@ -254,19 +261,27 @@ export const categoryUnreadMessagesCountSelector = createCachedSelector(
 )((_, categoryId: number) => categoryId);
 
 export const categoryHasUnreadMentionsSelector = createCachedSelector(
-  [
-    visibleChannelsInCategorySelector,
-    channelsReadStatesSelector,
-    messagesMapSelector,
-    ownUserIdSelector
-  ],
-  (channelsInCategory, readStatesMap, messagesMap, ownUserId) => {
-    return channelsInCategory.some((channel) => {
-      return hasUnreadMentionInMessages(
-        readStatesMap[channel.id] ?? 0,
-        messagesMap[channel.id] ?? [],
-        ownUserId
-      );
-    });
+  [visibleChannelsInCategorySelector, mentionUnreadMapSelector],
+  (channelsInCategory, mentionUnreadByChannel) => {
+    return channelsInCategory.some(
+      (channel) => (mentionUnreadByChannel[channel.id] ?? 0) > 0
+    );
   }
 )((_, categoryId: number) => categoryId);
+
+const MEMBER_LIST_MAX_USERS = 100;
+
+export const memberListGroupsSelector = createSelector(
+  [usersSelector, rolesSelector],
+  (users, roles) => buildMemberListGroups(users, roles, MEMBER_LIST_MAX_USERS)
+);
+
+export const memberListHiddenCountSelector = createSelector(
+  [usersSelector],
+  (users) =>
+    Math.max(
+      0,
+      users.filter((user) => !isDeletedUser(user)).length -
+        MEMBER_LIST_MAX_USERS
+    )
+);

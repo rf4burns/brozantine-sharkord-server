@@ -5,7 +5,8 @@ import {
   videoExtensions,
   type TJoinedMessage,
   type TMessageMetadata
-} from '@sharkord/shared';
+} from '@kurier/shared';
+import { extractEmbeddableGifUrls, normalizeGifUrl } from './gif-urls';
 import { normalizeComparableUrl } from './helpers';
 import type { TFoundMedia } from './types';
 
@@ -75,7 +76,7 @@ const buildMediaSignature = (message: TJoinedMessage) => {
     )
     .join('|');
 
-  return `${message.id}::${fileSignature}::${metadataSignature}`;
+  return `${message.id}::${fileSignature}::${metadataSignature}::${message.content ?? ''}`;
 };
 
 const extractMessageMedia = (message: TJoinedMessage): TFoundMedia[] => {
@@ -138,11 +139,23 @@ const extractMessageMedia = (message: TJoinedMessage): TFoundMedia[] => {
     })
     .filter((media) => !!media) as TFoundMedia[];
 
+  const gifFromContent: TFoundMedia[] = extractEmbeddableGifUrls(
+    message.content ?? ''
+  ).map((url) => ({
+    key: getStableMediaKey(mediaKeyCounts, `gif:${normalizeGifUrl(url)}`),
+    type: 'image' as const,
+    url
+  }));
+
   trimMediaCache();
 
   const seenMedia = new Set<string>();
 
-  const media = [...mediaFromFiles, ...mediaFromMetadata].filter((item) => {
+  const media = [
+    ...mediaFromFiles,
+    ...mediaFromMetadata,
+    ...gifFromContent
+  ].filter((item) => {
     const mediaId = `${item.type}:${normalizeComparableUrl(item.url)}`;
 
     if (seenMedia.has(mediaId)) {

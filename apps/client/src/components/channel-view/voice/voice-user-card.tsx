@@ -1,6 +1,7 @@
 import { useDevices } from '@/components/devices-provider/hooks/use-devices';
 import { UserAvatar } from '@/components/user-avatar';
 import { useStreamVolumeControl } from '@/components/voice-provider/hooks/use-stream-volume-control';
+import { VoiceStateIndicators } from '@/components/voice-state-icons/indicators';
 import { useWebRtcSimulcastEnabled } from '@/features/server/hooks';
 import type { TVoiceUser } from '@/features/server/types';
 import { useIsOwnUser } from '@/features/server/users/hooks';
@@ -11,8 +12,8 @@ import {
 } from '@/features/server/voice/hooks';
 import { getFileUrl } from '@/helpers/get-file-url';
 import { cn } from '@/lib/utils';
-import { StreamKind } from '@sharkord/shared';
-import { HeadphoneOff, MicOff, Monitor, Video } from 'lucide-react';
+import { StreamKind } from '@kurier/shared';
+import { Monitor, Video } from 'lucide-react';
 import { memo, useCallback, useMemo } from 'react';
 import { CardTheme } from './card-theme';
 import { cardControlClass, cardDensity } from './helpers';
@@ -176,23 +177,18 @@ const VoiceUserCard = memo(
               density.badge,
               !voiceUser.state.micMuted &&
                 !voiceUser.state.soundMuted &&
+                !voiceUser.state.serverMuted &&
+                !voiceUser.state.serverDeafened &&
                 !voiceUser.state.webcamEnabled &&
                 !voiceUser.state.sharingScreen &&
                 'hidden group-hover/voice-stage:inline-flex'
             )}
           >
-            {voiceUser.state.micMuted && !voiceUser.state.soundMuted && (
-              <MicOff
-                className="text-red-400/80 shrink-0 size-3"
-                fill="currentColor"
-              />
-            )}
-            {voiceUser.state.soundMuted && (
-              <HeadphoneOff
-                className="text-red-400/80 size-3"
-                fill="currentColor"
-              />
-            )}
+            <VoiceStateIndicators
+              state={voiceUser.state}
+              hideWhenClear
+              iconClassName="size-3"
+            />
             {voiceUser.state.webcamEnabled && (
               <Video className="text-white/80 size-3" fill="currentColor" />
             )}

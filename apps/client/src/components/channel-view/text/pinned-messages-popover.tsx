@@ -2,7 +2,7 @@ import { RelativeTime } from '@/components/relative-time';
 import { useSelectedChannelId } from '@/features/server/channels/hooks';
 import { useUserById } from '@/features/server/users/hooks';
 import { getTRPCClient } from '@/lib/trpc';
-import { getTrpcError, type TJoinedMessage } from '@sharkord/shared';
+import { getTrpcError, type TJoinedMessage } from '@kurier/shared';
 import {
   IconButton,
   Popover,
@@ -10,7 +10,7 @@ import {
   PopoverTrigger,
   Spinner,
   Tooltip
-} from '@sharkord/ui';
+} from '@kurier/ui';
 import { format } from 'date-fns';
 import { ArrowRight, Pin } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
@@ -34,7 +34,7 @@ const PinnedMessageGroupWrapper = memo(
       <div className="rounded-lg border border-border/70 bg-card/60 p-2">
         <div className="mb-2 flex items-center justify-between rounded-md border border-border/50 bg-secondary/35 px-3 py-2">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Pin className="h-3.5 w-3.5 text-primary/80" />
+            <Pin className="h-3.5 w-3.5 text-muted-foreground" />
             <span>
               {t('pinnedBy', { name: user ? user.name : t('unknownUser') })}
             </span>

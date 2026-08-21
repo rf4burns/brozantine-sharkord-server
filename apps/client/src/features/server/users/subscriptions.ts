@@ -1,13 +1,7 @@
 import { logDebug } from '@/helpers/browser-logger';
 import { getTRPCClient } from '@/lib/trpc';
-import { UserStatus, type TJoinedPublicUser } from '@sharkord/shared';
-import {
-  addUser,
-  handleUserJoin,
-  reassignUser,
-  updateUser,
-  wipeUser
-} from './actions';
+import { UserStatus, type TJoinedPublicUser } from '@kurier/shared';
+import { addUser, handleUserJoin, tombstoneUser, updateUser } from './actions';
 
 const subscribeToUsers = () => {
   const trpc = getTRPCClient();
@@ -45,14 +39,9 @@ const subscribeToUsers = () => {
   });
 
   const onUserDeleteSub = trpc.users.onDelete.subscribe(undefined, {
-    onData: ({ isWipe, userId, deletedUserId }) => {
-      logDebug('[EVENTS] users.onDelete', { isWipe, userId, deletedUserId });
-
-      if (isWipe) {
-        wipeUser(userId);
-      } else {
-        reassignUser(userId, deletedUserId);
-      }
+    onData: ({ isWipe, userId }) => {
+      logDebug('[EVENTS] users.onDelete', { isWipe, userId });
+      tombstoneUser(userId, isWipe);
     },
     onError: (err) => console.error('onUserDelete subscription error:', err)
   });

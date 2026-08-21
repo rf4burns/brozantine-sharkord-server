@@ -3,6 +3,7 @@ import type {
   StreamKind,
   TCategory,
   TChannel,
+  TChannelNotificationLevel,
   TChannelUserPermissionsMap,
   TCommandsMapByPlugin,
   TExternalStream,
@@ -14,7 +15,7 @@ import type {
   TPluginMetadata,
   TPublicServerSettings,
   TVoiceUserState
-} from '@sharkord/shared';
+} from '@kurier/shared';
 import type { Unsubscribable } from '@trpc/server/observable';
 import { observable, type Observable } from '@trpc/server/observable';
 import { EventEmitter } from 'events';
@@ -44,7 +45,6 @@ type Events = {
   [ServerEvents.USER_DELETE]: {
     isWipe: boolean;
     userId: number;
-    deletedUserId: number; // the special Deleted User placeholder
   };
 
   [ServerEvents.CHANNEL_CREATE]: TChannel;
@@ -59,11 +59,17 @@ type Events = {
     channelId: number;
     delta: number;
   };
+  [ServerEvents.CHANNEL_NOTIFICATION_OVERRIDE]: {
+    channelId: number;
+    level: TChannelNotificationLevel;
+  };
 
   [ServerEvents.USER_JOIN_VOICE]: {
     channelId: number;
     userId: number;
     state: TVoiceUserState;
+    joinedAt: number;
+    occupiedSince: number | null;
   };
   [ServerEvents.USER_LEAVE_VOICE]: {
     channelId: number;

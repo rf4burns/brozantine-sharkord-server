@@ -9,7 +9,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue
-} from '@sharkord/ui';
+} from '@kurier/ui';
 import { AlertCircle, Bug, Info } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -174,7 +174,7 @@ const PluginLogsDialog = memo(
 
           <div className="flex items-center gap-3 mt-4 text-sm">
             <div className="flex items-center gap-1.5">
-              <Info className="w-4 h-4 text-primary" />
+              <Info className="w-4 h-4 text-foreground" />
               <span className="text-muted-foreground">
                 {t('infoLabel')}{' '}
                 <span className="font-semibold">{infoCount}</span>

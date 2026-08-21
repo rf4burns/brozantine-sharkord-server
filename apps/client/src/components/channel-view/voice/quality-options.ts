@@ -1,4 +1,4 @@
-import type { TStreamQuality, TStreamQualityLayer } from '@sharkord/shared';
+import type { TStreamQuality, TStreamQualityLayer } from '@kurier/shared';
 
 const getStreamQualityLabel = (
   quality: TStreamQuality,

@@ -3,8 +3,12 @@ import {
   voiceChatSidebarDataSelector
 } from '@/features/app/selectors';
 import type { IRootState } from '@/features/store';
+import {
+  ChannelType,
+  type TChannel,
+  type TChannelNotificationLevel
+} from '@kurier/shared';
 import { createSelector } from '@reduxjs/toolkit';
-import { ChannelType, type TChannel } from '@sharkord/shared';
 import { createCachedSelector } from 're-reselect';
 
 const DEFAULT_OBJECT = {};
@@ -35,6 +39,12 @@ export const channelReadStateByIdSelector = (
   state: IRootState,
   channelId: number
 ) => state.server.readStatesMap[channelId] ?? 0;
+
+export const channelNotificationLevelByIdSelector = (
+  state: IRootState,
+  channelId: number
+): TChannelNotificationLevel =>
+  state.server.notificationOverridesMap[channelId] ?? 'all';
 
 export const channelByIdSelector = createCachedSelector(
   [channelsSelector, (_: IRootState, channelId: number) => channelId],

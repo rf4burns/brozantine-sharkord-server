@@ -5,20 +5,20 @@ ENV RUNNING_IN_DOCKER=true
 
 USER root
 
-COPY apps/server/build/out/sharkord-linux-x64 /tmp/sharkord-linux-x64
-COPY apps/server/build/out/sharkord-linux-arm64 /tmp/sharkord-linux-arm64
+COPY apps/server/build/out/kurier-linux-x64 /tmp/kurier-linux-x64
+COPY apps/server/build/out/kurier-linux-arm64 /tmp/kurier-linux-arm64
 
 RUN set -eux; \
     case "$TARGETARCH" in \
-      amd64)  cp /tmp/sharkord-linux-x64 /sharkord ;; \
-      arm64)  cp /tmp/sharkord-linux-arm64 /sharkord ;; \
+      amd64)  cp /tmp/kurier-linux-x64 /kurier ;; \
+      arm64)  cp /tmp/kurier-linux-arm64 /kurier ;; \
       *) echo "Unsupported arch: $TARGETARCH" >&2; exit 1 ;; \
     esac; \
-    chmod +x /sharkord; \
-    chown bun:bun /sharkord; \
-    rm -rf /tmp/sharkord-linux-*
+    chmod +x /kurier; \
+    chown bun:bun /kurier; \
+    rm -rf /tmp/kurier-linux-*
 
-RUN mkdir -p /home/bun/.config/sharkord && \
+RUN mkdir -p /home/bun/.config/kurier && \
     chown -R bun:bun /home/bun/.config
 
 COPY docker-entrypoint.sh /entrypoint.sh

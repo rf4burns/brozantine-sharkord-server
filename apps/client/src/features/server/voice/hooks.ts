@@ -1,7 +1,7 @@
 import { useAudioLevel } from '@/components/channel-view/voice/hooks/use-audio-level';
 import { VoiceProviderContext } from '@/components/voice-provider';
 import type { IRootState } from '@/features/store';
-import { StreamKind } from '@sharkord/shared';
+import { StreamKind } from '@kurier/shared';
 import { useContext, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { useIsOwnUser } from '../users/hooks';
@@ -15,13 +15,22 @@ import {
   voiceChannelAudioExternalStreamsSelector,
   voiceChannelExternalStreamsListSelector,
   voiceChannelExternalStreamsSelector,
+  voiceChannelOccupiedSinceSelector,
   voiceChannelStateSelector,
-  voiceChannelVideoExternalStreamsSelector
+  voiceChannelVideoExternalStreamsSelector,
+  voiceUserStateByUserIdSelector
 } from './selectors';
 
 export const useVoiceChannelState = (channelId: number) =>
   useSelector((state: IRootState) =>
     voiceChannelStateSelector(state, channelId)
+  );
+
+export const useVoiceChannelOccupiedSince = (channelId: number | undefined) =>
+  useSelector((state: IRootState) =>
+    channelId === undefined
+      ? null
+      : voiceChannelOccupiedSinceSelector(state, channelId)
   );
 
 export const useVoiceChannelExternalStreams = (channelId: number) =>
@@ -57,6 +66,11 @@ export const useVoice = () => {
 };
 
 export const useOwnVoiceState = () => useSelector(ownVoiceStateSelector);
+
+export const useVoiceUserStateByUserId = (userId: number) =>
+  useSelector((state: IRootState) =>
+    voiceUserStateByUserIdSelector(state, userId)
+  );
 
 export const usePinnedCard = () => useSelector(pinnedCardSelector);
 

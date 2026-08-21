@@ -1,4 +1,4 @@
-import { sha256 } from '@sharkord/shared';
+import { sha256 } from '@kurier/shared';
 import { describe, expect, test } from 'bun:test';
 import { eq } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
@@ -74,7 +74,7 @@ describe('/login', () => {
       .get();
 
     expect(newUser).toBeTruthy();
-    expect(newUser?.name).toStartWith('SharkordUser');
+    expect(newUser?.name).toStartWith('KurierUser');
   });
 
   test('should mark all existing messages as read for first-time users', async () => {
@@ -283,6 +283,49 @@ describe('/login', () => {
     expect(data.errors).toHaveProperty('identity', 'Invalid credentials');
     expect(data.errors.identity).not.toContain('banned');
     expect(data.errors.identity).not.toContain('Test ban reason');
+  });
+
+  test('should reject a deleted user that authenticates with the right password', async () => {
+    await tdb
+      .update(users)
+      .set({
+        deleted: true,
+        deletedAt: Date.now(),
+        banned: true,
+        banReason: 'Account deleted'
+      })
+      .where(eq(users.identity, 'testuser'));
+
+    const response = await login('testuser', 'password123');
+
+    expect(response.status).toBe(400);
+
+    const data: any = await response.json();
+
+    expect(data).toHaveProperty('errors');
+    expect(data.errors).toHaveProperty(
+      'identity',
+      'This account has been deleted'
+    );
+  });
+
+  test('should hide deleted status from a deleted user that supplies the wrong password', async () => {
+    await tdb
+      .update(users)
+      .set({
+        deleted: true,
+        deletedAt: Date.now()
+      })
+      .where(eq(users.identity, 'testuser'));
+
+    const response = await login('testuser', 'wrongpassword');
+
+    expect(response.status).toBe(400);
+
+    const data: any = await response.json();
+
+    expect(data.errors.identity).toBe('Invalid credentials');
+    expect(data.errors.identity).not.toContain('deleted');
   });
 
   test('should fail with missing identity', async () => {

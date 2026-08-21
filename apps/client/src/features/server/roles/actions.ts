@@ -1,5 +1,5 @@
 import { store } from '@/features/store';
-import type { TJoinedRole } from '@sharkord/shared';
+import type { TJoinedRole } from '@kurier/shared';
 import { serverSliceActions } from '../slice';
 
 export const setRoles = (roles: TJoinedRole[]) =>

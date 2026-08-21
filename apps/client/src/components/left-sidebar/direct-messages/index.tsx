@@ -1,9 +1,14 @@
+import { ChannelContextMenu } from '@/components/context-menus/channel';
 import { UnreadCount } from '@/components/unread-count';
 import { UserAvatar } from '@/components/user-avatar';
 import { setSelectedDmChannelId } from '@/features/app/actions';
 import { useSelectedDmChannelId } from '@/features/app/hooks';
+import { openDirectMessage } from '@/features/hosts/actions';
 import { useChannels } from '@/features/server/channels/hooks';
-import { useUnreadMessagesCount } from '@/features/server/hooks';
+import {
+  useHasUnreadMentions,
+  useUnreadMessagesCount
+} from '@/features/server/hooks';
 import {
   useOwnUserId,
   useUserById,
@@ -11,11 +16,8 @@ import {
 } from '@/features/server/users/hooks';
 import { getTRPCClient } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
-import {
-  DELETED_USER_IDENTITY_AND_NAME,
-  type TDirectMessageConversation
-} from '@sharkord/shared';
-import { Spinner } from '@sharkord/ui';
+import { isDeletedUser, type TDirectMessageConversation } from '@kurier/shared';
+import { Spinner } from '@kurier/ui';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -31,24 +33,27 @@ const DirectMessageItem = memo(
   ({ dm, selected, onSelect }: TDirectMessageItemProps) => {
     const user = useUserById(dm.userId);
     const unreadCount = useUnreadMessagesCount(dm.channelId);
+    const hasMention = useHasUnreadMentions(dm.channelId);
 
     if (!user) {
       return null;
     }
 
     return (
-      <button
-        type="button"
-        className={cn(
-          'flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-          selected && 'bg-accent text-accent-foreground'
-        )}
-        onClick={onSelect}
-      >
-        <UserAvatar userId={user.id} className="h-6 w-6" showUserPopover />
-        <span className="truncate flex-1 text-left">{user.name}</span>
-        <UnreadCount count={unreadCount} />
-      </button>
+      <ChannelContextMenu channelId={dm.channelId}>
+        <button
+          type="button"
+          className={cn(
+            'flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+            selected && 'bg-accent text-accent-foreground'
+          )}
+          onClick={onSelect}
+        >
+          <UserAvatar userId={user.id} className="h-6 w-6" showUserPopover />
+          <span className="truncate flex-1 text-left">{user.name}</span>
+          <UnreadCount count={unreadCount} hasMention={hasMention} />
+        </button>
+      </ChannelContextMenu>
     );
   }
 );
@@ -103,7 +108,7 @@ const DirectMessages = memo(() => {
       (user) =>
         user.id !== ownUserId &&
         !user.banned &&
-        user.name !== DELETED_USER_IDENTITY_AND_NAME &&
+        !isDeletedUser(user) &&
         !directMessageUserIds.has(user.id) &&
         user.name.toLowerCase().includes(query.trim().toLowerCase())
     );
@@ -111,18 +116,17 @@ const DirectMessages = memo(() => {
 
   const onStartDm = useCallback(
     async (userId: number) => {
-      const trpc = getTRPCClient();
+      const user = users.find((entry) => entry.id === userId);
 
-      try {
-        const result = await trpc.dms.open.mutate({ userId });
-
-        setSelectedDmChannelId(result.channelId);
-        await fetchConversations();
-      } catch {
+      if (!user) {
         toast.error(t('couldNotOpenDM'));
+        return;
       }
+
+      await openDirectMessage(user);
+      await fetchConversations();
     },
-    [fetchConversations, t]
+    [fetchConversations, t, users]
   );
 
   return (

@@ -3,7 +3,7 @@ import {
   ChannelType,
   Permission,
   ServerEvents
-} from '@sharkord/shared';
+} from '@kurier/shared';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { config } from '../../config';
@@ -11,6 +11,7 @@ import { db } from '../../db';
 import { publishHiddenChannelToUser } from '../../db/publishers';
 import { userCan } from '../../db/queries/roles';
 import { channels } from '../../db/schema';
+import { assertCanModerateUser } from '../../helpers/role-hierarchy';
 import { grantVoiceMove } from '../../helpers/voice-move-grants';
 import { logger } from '../../logger';
 import { VoiceRuntime } from '../../runtimes/voice';
@@ -30,6 +31,7 @@ const moveUserRoute = rateLimitedProcedure(protectedProcedure, {
   )
   .mutation(async ({ input, ctx }) => {
     await ctx.needsPermission(Permission.MOVE_MEMBERS);
+    await assertCanModerateUser(ctx.userId, input.userId);
 
     const channel = await db
       .select()

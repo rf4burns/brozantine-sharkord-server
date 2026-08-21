@@ -1,14 +1,18 @@
 import { store } from '@/features/store';
-import { UserStatus, type TJoinedPublicUser } from '@sharkord/shared';
+import { cacheHostMembers } from '@/helpers/host-members';
+import { getActiveHost } from '@/helpers/saved-hosts';
+import { UserStatus, type TJoinedPublicUser } from '@kurier/shared';
 import { serverSliceActions } from '../slice';
 import { userByIdSelector } from './selectors';
 
 export const setUsers = (users: TJoinedPublicUser[]) => {
   store.dispatch(serverSliceActions.setUsers(users));
+  cacheHostMembers(getActiveHost(), store.getState().server.users);
 };
 
 export const addUser = (user: TJoinedPublicUser) => {
   store.dispatch(serverSliceActions.addUser(user));
+  cacheHostMembers(getActiveHost(), store.getState().server.users);
 };
 
 export const updateUser = (
@@ -16,16 +20,12 @@ export const updateUser = (
   user: Partial<TJoinedPublicUser>
 ) => {
   store.dispatch(serverSliceActions.updateUser({ userId, user }));
+  cacheHostMembers(getActiveHost(), store.getState().server.users);
 };
 
-export const wipeUser = (userId: number) => {
-  store.dispatch(serverSliceActions.wipeUser({ userId }));
-};
-
-export const reassignUser = (userId: number, targetUser: number) => {
-  store.dispatch(
-    serverSliceActions.reassignUser({ userId, deletedUserId: targetUser })
-  );
+export const tombstoneUser = (userId: number, wipe: boolean) => {
+  store.dispatch(serverSliceActions.tombstoneUser({ userId, wipe }));
+  cacheHostMembers(getActiveHost(), store.getState().server.users);
 };
 
 export const handleUserJoin = (user: TJoinedPublicUser) => {

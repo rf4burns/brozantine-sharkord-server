@@ -5,6 +5,7 @@ import { deletePermissionsRoute } from './delete-permissions';
 import {
   onChannelCreateRoute,
   onChannelDeleteRoute,
+  onChannelNotificationOverrideRoute,
   onChannelPermissionsUpdateRoute,
   onChannelReadStatesDeltaRoute,
   onChannelReadStatesUpdateRoute,
@@ -14,8 +15,10 @@ import { getChannelRoute } from './get-channel';
 import { getPermissionsRoute } from './get-permissions';
 import { markAsReadRoute } from './mark-as-read';
 import { reorderChannelsRoute } from './reorder-channels';
+import { setNotificationOverrideRoute } from './set-notification-override';
 import { updateChannelRoute } from './update-channel';
 import { updatePermissionsRoute } from './update-permission';
+import { updateVoiceStatusRoute } from './update-voice-status';
 
 export const channelsRouter = t.router({
   add: addChannelRoute,
@@ -27,10 +30,13 @@ export const channelsRouter = t.router({
   deletePermissions: deletePermissionsRoute,
   reorder: reorderChannelsRoute,
   markAsRead: markAsReadRoute,
+  setNotificationOverride: setNotificationOverrideRoute,
+  updateVoiceStatus: updateVoiceStatusRoute,
   onCreate: onChannelCreateRoute,
   onDelete: onChannelDeleteRoute,
   onUpdate: onChannelUpdateRoute,
   onPermissionsUpdate: onChannelPermissionsUpdateRoute,
   onReadStateUpdate: onChannelReadStatesUpdateRoute,
-  onReadStateDelta: onChannelReadStatesDeltaRoute
+  onReadStateDelta: onChannelReadStatesDeltaRoute,
+  onNotificationOverride: onChannelNotificationOverrideRoute
 });

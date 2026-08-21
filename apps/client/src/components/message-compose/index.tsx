@@ -1,4 +1,5 @@
 import { EmojiPicker } from '@/components/emoji-picker';
+import { GifPicker } from '@/components/gif-picker';
 import { PluginSlotRenderer } from '@/components/plugin-slot-renderer';
 import type { TTiptapInputHandle } from '@/components/tiptap-input';
 import { TiptapInput } from '@/components/tiptap-input';
@@ -10,20 +11,31 @@ import {
   useChannelCan,
   usePublicServerSettings
 } from '@/features/server/hooks';
+import {
+  addOptimisticMessage,
+  createOptimisticImageMessage,
+  deleteMessage,
+  replaceOptimisticMessage
+} from '@/features/server/messages/actions';
 import { useFlatPluginCommands } from '@/features/server/plugins/hooks';
+import { playSound } from '@/features/server/sounds/actions';
+import { SoundType } from '@/features/server/types';
+import { useOwnUserId } from '@/features/server/users/hooks';
 import { useUploadFiles } from '@/hooks/use-upload-files';
 import { getTRPCClient } from '@/lib/trpc';
 import type { TReplyTarget } from '@/types';
-import type { TJoinedPublicUser, TTempFile } from '@sharkord/shared';
+import type { TJoinedPublicUser, TTempFile } from '@kurier/shared';
 import {
   ChannelPermission,
+  getTrpcError,
   isEmptyMessage,
   Permission,
-  PluginSlot
-} from '@sharkord/shared';
-import { Button, Spinner } from '@sharkord/ui';
+  PluginSlot,
+  prepareMessageHtml
+} from '@kurier/shared';
+import { Button, Spinner } from '@kurier/ui';
 import { filesize } from 'filesize';
-import { Paperclip, Reply, Send, Smile, X } from 'lucide-react';
+import { Paperclip, Reply, Send, Smile, Sticker, X } from 'lucide-react';
 import {
   memo,
   useCallback,
@@ -36,6 +48,7 @@ import {
   type RefObject
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { DEFAULT_MAX_HEIGHT_VH } from '../channel-view/text/helpers';
 import { useMessageAuthorName } from '../channel-view/text/hooks/use-message-author-name';
 import { PreviewFile } from '../channel-view/text/preview-file';
@@ -54,6 +67,7 @@ type TMessageComposeProps = {
   inputStorageKey?: LocalStorageKey;
   inputDefaultMaxHeightVh?: number;
   replyTarget?: TReplyTarget;
+  replyToMessageId?: number;
   onCancelReply?: () => void;
   onArrowUp?: () => void;
   onResize?: () => void;
@@ -79,6 +93,7 @@ const MessageCompose = memo(
     inputStorageKey = LocalStorageKey.CHAT_INPUT_HEIGHT_VH,
     inputDefaultMaxHeightVh = DEFAULT_MAX_HEIGHT_VH,
     replyTarget,
+    replyToMessageId,
     onCancelReply,
     onArrowUp,
     onResize,
@@ -87,6 +102,13 @@ const MessageCompose = memo(
   }: TMessageComposeProps) => {
     const { t } = useTranslation('common');
     const sendingRef = useRef(false);
+    const processFilesRef = useRef<
+      | ((
+          filesToUpload: File[],
+          options?: { silent?: boolean }
+        ) => Promise<TTempFile[]>)
+      | undefined
+    >(undefined);
     const internalContainerRef = useRef<HTMLDivElement | null>(null);
     const containerRef = composeContainerRef ?? internalContainerRef;
     const tiptapRef = useRef<TTiptapInputHandle>(null);
@@ -95,6 +117,7 @@ const MessageCompose = memo(
     const channelCan = useChannelCan(channelId);
     const channel = useChannelById(channelId);
     const publicSettings = usePublicServerSettings();
+    const ownUserId = useOwnUserId();
     const allPluginCommands = useFlatPluginCommands();
     const replyAuthorName = useMessageAuthorName({
       userId: replyTarget?.userId ?? 0,
@@ -132,6 +155,70 @@ const MessageCompose = memo(
       [can, allPluginCommands]
     );
 
+    const handlePasteImages = useCallback(
+      async (imageFiles: File[]) => {
+        if (!canSendMessages || !ownUserId || sendingRef.current) {
+          return;
+        }
+
+        const process = processFilesRef.current;
+
+        if (!process) {
+          return;
+        }
+
+        const previewUrls = imageFiles.map((file) => URL.createObjectURL(file));
+        const optimistic = createOptimisticImageMessage({
+          channelId,
+          userId: ownUserId,
+          previewUrls,
+          replyToMessageId
+        });
+
+        addOptimisticMessage(optimistic);
+        sendingRef.current = true;
+
+        try {
+          const uploaded = await process(imageFiles, { silent: true });
+
+          if (!uploaded.length) {
+            throw new Error('upload failed');
+          }
+
+          const trpc = getTRPCClient();
+          const messageId = await trpc.messages.send.mutate({
+            content: prepareMessageHtml(''),
+            channelId,
+            files: uploaded.map((file) => file.id),
+            replyToMessageId
+          });
+
+          replaceOptimisticMessage(channelId, optimistic.id, {
+            ...optimistic,
+            id: messageId
+          });
+          playSound(SoundType.MESSAGE_SENT);
+          onCancelReply?.();
+        } catch (error) {
+          deleteMessage(channelId, optimistic.id);
+          toast.error(getTrpcError(error, t('failedSendMessage')));
+        } finally {
+          sendingRef.current = false;
+          window.setTimeout(() => {
+            previewUrls.forEach((url) => URL.revokeObjectURL(url));
+          }, 15_000);
+        }
+      },
+      [
+        canSendMessages,
+        ownUserId,
+        channelId,
+        replyToMessageId,
+        onCancelReply,
+        t
+      ]
+    );
+
     const {
       files,
       displayItems,
@@ -141,8 +228,16 @@ const MessageCompose = memo(
       uploadingSize,
       uploadSpeed,
       openFileDialog,
-      fileInputProps
-    } = useUploadFiles(channelId, containerRef, !canSendMessages);
+      fileInputProps,
+      processFiles
+    } = useUploadFiles(
+      channelId,
+      containerRef,
+      !canSendMessages,
+      isThread ? undefined : handlePasteImages
+    );
+
+    processFilesRef.current = processFiles;
 
     useFileAwareHeight({
       containerRef,
@@ -243,12 +338,12 @@ const MessageCompose = memo(
     return (
       <div
         ref={containerRef}
-        className="compose-container relative shrink-0 min-h-14 flex flex-col pb-[env(safe-area-inset-bottom)] bg-white/[0.03]"
+        className="compose-container relative flex min-h-14 shrink-0 flex-col bg-background px-4 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-1.5"
       >
         <UsersTypingIndicator typingUsers={typingUsers} />
 
         <div
-          className={`compose-scroll-row flex items-start flex-1 overflow-y-auto cursor-text${uploading ? ' bg-muted' : ''}`}
+          className={`compose-scroll-row flex flex-1 cursor-text items-start overflow-y-auto rounded-lg bg-card${uploading ? ' opacity-80' : ''}`}
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               tiptapRef.current?.focus();
@@ -317,6 +412,18 @@ const MessageCompose = memo(
               <PluginSlotRenderer slotId={PluginSlot.CHAT_ACTIONS} />
             )}
 
+            <GifPicker
+              onGifSelect={(url) => tiptapRef.current?.insertGifUrl(url)}
+            >
+              <Button
+                size="icon"
+                variant="ghost"
+                disabled={uploading || !canSendMessages}
+                title={t('insertGif')}
+              >
+                <Sticker className="h-4 w-4" />
+              </Button>
+            </GifPicker>
             <EmojiPicker
               onEmojiSelect={(emoji) => tiptapRef.current?.insertEmoji(emoji)}
             >

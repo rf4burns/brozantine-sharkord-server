@@ -1,6 +1,6 @@
 {
-  "name": "@sharkord/server",
-  "version": "0.0.23",
+  "name": "@kurier/server",
+  "version": "0.0.24",
   "module": "src/index.ts",
   "type": "module",
   "private": true,
@@ -39,8 +39,8 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@sharkord/plugin-sdk": "workspace:*",
-    "@sharkord/shared": "workspace:*",
+    "@kurier/plugin-sdk": "workspace:*",
+    "@kurier/shared": "workspace:*",
     "@trpc/server": "^11.6.0",
     "bun-sfe-autoupdater": "^0.0.4",
     "chalk": "^5.6.2",
@@ -62,6 +62,7 @@
     "ws": "^8.18.3",
     "yauzl": "^3.2.0",
     "yazl": "^3.3.1",
+    "youtubei.js": "^18.0.0",
     "zod": "^4.1.11"
   }
 }

@@ -6,7 +6,7 @@ import {
   getMediasoupKind,
   StreamKind,
   type TStreamQualityLayer
-} from '@sharkord/shared';
+} from '@kurier/shared';
 import { TRPCClientError } from '@trpc/client';
 import {
   type AppData,
@@ -17,6 +17,8 @@ import {
 } from 'mediasoup-client/types';
 import { useCallback, useRef } from 'react';
 import { getStoredStreamQuality } from '../helpers';
+
+type TIceDirection = 'send' | 'recv';
 
 type TUseTransportParams = {
   addRemoteUserStream: (
@@ -48,6 +50,33 @@ type TUseTransportParams = {
     layers: TStreamQualityLayer[]
   ) => void;
   clearRemoteConsumerMetadata: () => void;
+  onSilentRejoinNeeded: () => void;
+};
+
+const MAX_ICE_RESTARTS = 2;
+const ICE_RESTART_WAIT_MS = 4000;
+const DISCONNECT_GRACE_MS = 1500;
+const ICE_POLL_INTERVAL_MS = 200;
+
+const wait = (ms: number) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+const waitForTransportConnected = async (
+  transport: Transport<AppData>,
+  timeoutMs: number
+) => {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    if (transport.closed) return false;
+    if (transport.connectionState === 'connected') return true;
+
+    await wait(ICE_POLL_INTERVAL_MS);
+  }
+
+  return !transport.closed && transport.connectionState === 'connected';
 };
 
 const useTransports = ({
@@ -57,7 +86,8 @@ const useTransports = ({
   removeExternalStreamTrack,
   setRemoteConsumerType,
   setRemoteStreamQualityLayers,
-  clearRemoteConsumerMetadata
+  clearRemoteConsumerMetadata,
+  onSilentRejoinNeeded
 }: TUseTransportParams) => {
   const producerTransport = useRef<Transport<AppData> | undefined>(undefined);
   const consumerTransport = useRef<Transport<AppData> | undefined>(undefined);
@@ -68,156 +98,310 @@ const useTransports = ({
   }>({});
   const consumerCodecs = useRef<Map<string, string>>(new Map());
   const consumeOperationsInProgress = useRef<Set<string>>(new Set());
+  const cleaningUpRef = useRef(false);
+  const silentRejoinRequestedRef = useRef(false);
+  const onSilentRejoinNeededRef = useRef(onSilentRejoinNeeded);
+  const iceRestartAttemptsRef = useRef<Record<TIceDirection, number>>({
+    send: 0,
+    recv: 0
+  });
+  const iceRestartInFlightRef = useRef<Record<TIceDirection, boolean>>({
+    send: false,
+    recv: false
+  });
+  const iceRestartTimersRef = useRef<
+    Record<TIceDirection, ReturnType<typeof setTimeout> | undefined>
+  >({
+    send: undefined,
+    recv: undefined
+  });
 
-  const createProducerTransport = useCallback(async (device: Device) => {
-    logVoice('Creating producer transport', { device });
+  onSilentRejoinNeededRef.current = onSilentRejoinNeeded;
 
-    const trpc = getTRPCClient();
+  const clearIceRestartTimer = useCallback((direction: TIceDirection) => {
+    const timer = iceRestartTimersRef.current[direction];
 
-    try {
-      const params = await trpc.voice.createProducerTransport.mutate();
+    if (timer) {
+      clearTimeout(timer);
+      iceRestartTimersRef.current[direction] = undefined;
+    }
+  }, []);
 
-      logVoice('Got producer transport parameters', { params });
+  const requestSilentRejoin = useCallback(() => {
+    if (cleaningUpRef.current || silentRejoinRequestedRef.current) return;
 
-      producerTransport.current = device.createSendTransport(params);
+    silentRejoinRequestedRef.current = true;
+    logVoice('Requesting silent voice rejoin');
+    onSilentRejoinNeededRef.current();
+  }, []);
 
-      producerTransport.current.on(
-        'connect',
-        async ({ dtlsParameters }, callback, errback) => {
-          logVoice('Producer transport connected', { dtlsParameters });
+  const restartIce = useCallback(
+    async (direction: TIceDirection) => {
+      if (cleaningUpRef.current || silentRejoinRequestedRef.current) return;
 
-          try {
-            await trpc.voice.connectProducerTransport.mutate({
-              dtlsParameters
-            });
+      const transport =
+        direction === 'send'
+          ? producerTransport.current
+          : consumerTransport.current;
 
-            callback();
-          } catch (error) {
-            errback(error as Error);
-            logVoice('Error connecting producer transport', { error });
-          }
+      if (!transport || transport.closed) {
+        requestSilentRejoin();
+        return;
+      }
+
+      if (transport.connectionState === 'connected') {
+        iceRestartAttemptsRef.current[direction] = 0;
+        return;
+      }
+
+      if (iceRestartInFlightRef.current[direction]) return;
+
+      if (iceRestartAttemptsRef.current[direction] >= MAX_ICE_RESTARTS) {
+        logVoice('ICE restart attempts exhausted', { direction });
+        requestSilentRejoin();
+        return;
+      }
+
+      iceRestartInFlightRef.current[direction] = true;
+      iceRestartAttemptsRef.current[direction] += 1;
+
+      logVoice('Restarting ICE', {
+        direction,
+        attempt: iceRestartAttemptsRef.current[direction]
+      });
+
+      try {
+        const trpc = getTRPCClient();
+        const iceParameters = await trpc.voice.restartIce.mutate({
+          direction
+        });
+
+        if (transport.closed || cleaningUpRef.current) return;
+
+        await transport.restartIce({ iceParameters });
+
+        const connected = await waitForTransportConnected(
+          transport,
+          ICE_RESTART_WAIT_MS
+        );
+
+        if (connected) {
+          iceRestartAttemptsRef.current[direction] = 0;
+          logVoice('ICE restart succeeded', { direction });
+          return;
         }
+
+        logVoice('ICE restart did not restore connection', { direction });
+        requestSilentRejoin();
+      } catch (error) {
+        logVoice('ICE restart failed', { direction, error });
+        requestSilentRejoin();
+      } finally {
+        iceRestartInFlightRef.current[direction] = false;
+      }
+    },
+    [requestSilentRejoin]
+  );
+
+  const handleTransportConnectionState = useCallback(
+    (direction: TIceDirection, state: string) => {
+      if (cleaningUpRef.current) return;
+
+      const transport =
+        direction === 'send'
+          ? producerTransport.current
+          : consumerTransport.current;
+
+      logVoice(
+        `${direction === 'send' ? 'Producer' : 'Consumer'} transport connection state changed`,
+        { state }
       );
 
-      producerTransport.current.on('connectionstatechange', (state) => {
-        logVoice('Producer transport connection state changed', { state });
+      if (state === 'connected') {
+        clearIceRestartTimer(direction);
+        iceRestartAttemptsRef.current[direction] = 0;
+        return;
+      }
 
-        if (state === 'failed') {
-          logVoice(`Producer transport ${state}`);
-          producerTransport.current?.close();
-        } else if (state === 'closed') {
-          logVoice('Producer transport closed');
+      if (state === 'closed') {
+        clearIceRestartTimer(direction);
+
+        if (direction === 'send') {
           producerTransport.current = undefined;
+        } else {
+          consumerTransport.current = undefined;
         }
-      });
 
-      producerTransport.current.on('icecandidateerror', (error) => {
-        logVoice('Producer transport ICE candidate error', { error });
-      });
+        requestSilentRejoin();
+        return;
+      }
 
-      producerTransport.current.on(
-        'produce',
-        async ({ rtpParameters, appData }, callback, errback) => {
-          logVoice('Producing new track', { rtpParameters, appData });
+      if (state === 'failed') {
+        clearIceRestartTimer(direction);
+        void restartIce(direction);
+        return;
+      }
 
-          const { kind, qualityLayers } = appData as {
-            kind: StreamKind;
-            qualityLayers?: TStreamQualityLayer[];
-          };
+      if (state === 'disconnected' && transport && !transport.closed) {
+        clearIceRestartTimer(direction);
 
-          if (!producerTransport.current) return;
+        iceRestartTimersRef.current[direction] = setTimeout(() => {
+          iceRestartTimersRef.current[direction] = undefined;
 
-          try {
-            const producerId = await trpc.voice.produce.mutate({
-              transportId: producerTransport.current.id,
-              kind,
-              rtpParameters,
-              qualityLayers
-            });
+          const current =
+            direction === 'send'
+              ? producerTransport.current
+              : consumerTransport.current;
 
-            callback({ id: producerId });
-          } catch (error) {
-            if (error instanceof TRPCClientError) {
-              if (error.data.code === 'FORBIDDEN') {
-                logVoice('Permission denied to produce track', { kind });
-                errback(
-                  new Error(
-                    `You don't have permission to ${kind} in this channel`
-                  )
-                );
+          if (
+            !current ||
+            current.closed ||
+            current.connectionState === 'connected'
+          ) {
+            return;
+          }
 
-                return;
-              }
+          void restartIce(direction);
+        }, DISCONNECT_GRACE_MS);
+      }
+    },
+    [clearIceRestartTimer, requestSilentRejoin, restartIce]
+  );
+
+  const createProducerTransport = useCallback(
+    async (device: Device) => {
+      logVoice('Creating producer transport', { device });
+
+      const trpc = getTRPCClient();
+
+      try {
+        const params = await trpc.voice.createProducerTransport.mutate();
+
+        logVoice('Got producer transport parameters', { params });
+
+        producerTransport.current = device.createSendTransport(params);
+        cleaningUpRef.current = false;
+        silentRejoinRequestedRef.current = false;
+
+        producerTransport.current.on(
+          'connect',
+          async ({ dtlsParameters }, callback, errback) => {
+            logVoice('Producer transport connected', { dtlsParameters });
+
+            try {
+              await trpc.voice.connectProducerTransport.mutate({
+                dtlsParameters
+              });
+
+              callback();
+            } catch (error) {
+              errback(error as Error);
+              logVoice('Error connecting producer transport', { error });
             }
-
-            logVoice('Error producing new track', { error });
-            errback(error as Error);
           }
-        }
-      );
-    } catch (error) {
-      logVoice('Error creating producer transport', { error });
-    }
-  }, []);
+        );
 
-  const createConsumerTransport = useCallback(async (device: Device) => {
-    logVoice('Creating consumer transport', { device });
+        producerTransport.current.on('connectionstatechange', (state) => {
+          handleTransportConnectionState('send', state);
+        });
 
-    const trpc = getTRPCClient();
+        producerTransport.current.on('icecandidateerror', (error) => {
+          logVoice('Producer transport ICE candidate error', { error });
+        });
 
-    try {
-      const params = await trpc.voice.createConsumerTransport.mutate();
+        producerTransport.current.on(
+          'produce',
+          async ({ rtpParameters, appData }, callback, errback) => {
+            logVoice('Producing new track', { rtpParameters, appData });
 
-      logVoice('Got consumer transport parameters', { params });
+            const { kind, qualityLayers } = appData as {
+              kind: StreamKind;
+              qualityLayers?: TStreamQualityLayer[];
+            };
 
-      consumerTransport.current = device.createRecvTransport(params);
+            if (!producerTransport.current) return;
 
-      consumerTransport.current.on(
-        'connect',
-        async ({ dtlsParameters }, callback, errback) => {
-          logVoice('Consumer transport connected', { dtlsParameters });
+            try {
+              const producerId = await trpc.voice.produce.mutate({
+                transportId: producerTransport.current.id,
+                kind,
+                rtpParameters,
+                qualityLayers
+              });
 
-          try {
-            await trpc.voice.connectConsumerTransport.mutate({
-              dtlsParameters
-            });
+              callback({ id: producerId });
+            } catch (error) {
+              if (error instanceof TRPCClientError) {
+                if (error.data.code === 'FORBIDDEN') {
+                  logVoice('Permission denied to produce track', { kind });
+                  errback(
+                    new Error(
+                      `You don't have permission to ${kind} in this channel`
+                    )
+                  );
 
-            callback();
-          } catch (error) {
-            errback(error as Error);
-            logVoice('Consumer transport connect error', { error });
+                  return;
+                }
+              }
+
+              logVoice('Error producing new track', { error });
+              errback(error as Error);
+            }
           }
-        }
-      );
+        );
+      } catch (error) {
+        logVoice('Error creating producer transport', { error });
+      }
+    },
+    [handleTransportConnectionState]
+  );
 
-      consumerTransport.current.on('connectionstatechange', (state) => {
-        logVoice('Consumer transport connection state changed', { state });
+  const createConsumerTransport = useCallback(
+    async (device: Device) => {
+      logVoice('Creating consumer transport', { device });
 
-        if (state === 'failed') {
-          logVoice(`Consumer transport ${state}, attempting cleanup`);
+      const trpc = getTRPCClient();
 
-          Object.values(consumers.current).forEach((userConsumers) => {
-            Object.values(userConsumers).forEach((consumer) => {
-              consumer.close();
-            });
-          });
-          consumers.current = {};
+      try {
+        const params = await trpc.voice.createConsumerTransport.mutate();
 
-          consumerTransport.current?.close();
-          consumerTransport.current = undefined;
-        } else if (state === 'closed') {
-          logVoice('Consumer transport closed');
-          consumerTransport.current = undefined;
-        }
-      });
+        logVoice('Got consumer transport parameters', { params });
 
-      consumerTransport.current.on('icecandidateerror', (error) => {
-        logVoice('Consumer transport ICE candidate error', { error });
-      });
-    } catch (error) {
-      logVoice('Failed to create consumer transport', { error });
-    }
-  }, []);
+        consumerTransport.current = device.createRecvTransport(params);
+        cleaningUpRef.current = false;
+        silentRejoinRequestedRef.current = false;
+
+        consumerTransport.current.on(
+          'connect',
+          async ({ dtlsParameters }, callback, errback) => {
+            logVoice('Consumer transport connected', { dtlsParameters });
+
+            try {
+              await trpc.voice.connectConsumerTransport.mutate({
+                dtlsParameters
+              });
+
+              callback();
+            } catch (error) {
+              errback(error as Error);
+              logVoice('Consumer transport connect error', { error });
+            }
+          }
+        );
+
+        consumerTransport.current.on('connectionstatechange', (state) => {
+          handleTransportConnectionState('recv', state);
+        });
+
+        consumerTransport.current.on('icecandidateerror', (error) => {
+          logVoice('Consumer transport ICE candidate error', { error });
+        });
+      } catch (error) {
+        logVoice('Failed to create consumer transport', { error });
+      }
+    },
+    [handleTransportConnectionState]
+  );
 
   const consume = useCallback(
     async (
@@ -455,6 +639,13 @@ const useTransports = ({
   const cleanupTransports = useCallback(() => {
     logVoice('Cleaning up transports');
 
+    cleaningUpRef.current = true;
+    silentRejoinRequestedRef.current = false;
+    iceRestartAttemptsRef.current = { send: 0, recv: 0 };
+    iceRestartInFlightRef.current = { send: false, recv: false };
+    clearIceRestartTimer('send');
+    clearIceRestartTimer('recv');
+
     Object.values(consumers.current).forEach((userConsumers) => {
       Object.values(userConsumers).forEach((consumer) => {
         if (!consumer.closed) {
@@ -483,7 +674,7 @@ const useTransports = ({
     consumerTransport.current = undefined;
 
     logVoice('Transports cleanup complete');
-  }, [clearRemoteConsumerMetadata]);
+  }, [clearIceRestartTimer, clearRemoteConsumerMetadata]);
 
   return {
     producerTransport,

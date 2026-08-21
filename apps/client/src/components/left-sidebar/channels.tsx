@@ -1,6 +1,8 @@
+import { ElapsedTime } from '@/components/elapsed-time';
 import { TypingDots } from '@/components/typing-dots';
 import {
   useChannelById,
+  useChannelNotificationLevel,
   useChannelsByCategoryId,
   useCurrentVoiceChannelId,
   useSelectedChannelId
@@ -14,7 +16,10 @@ import {
   useUnreadMessagesCount,
   useVoiceUsersByChannelId
 } from '@/features/server/hooks';
-import { useVoiceChannelExternalStreamsList } from '@/features/server/voice/hooks';
+import {
+  useVoiceChannelExternalStreamsList,
+  useVoiceChannelOccupiedSince
+} from '@/features/server/voice/hooks';
 import { useSelectChannel } from '@/hooks/use-select-channel';
 import { getTRPCClient } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
@@ -38,8 +43,8 @@ import {
   type TChannel,
   TestId,
   getTrpcError
-} from '@sharkord/shared';
-import { Hash, Volume2 } from 'lucide-react';
+} from '@kurier/shared';
+import { BellOff, Hash, Volume2 } from 'lucide-react';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -62,11 +67,14 @@ const Voice = memo(
   }: TVoiceProps & { isSelected: boolean }) => {
     const { t } = useTranslation('sidebar');
     const users = useVoiceUsersByChannelId(channel.id);
+    const occupiedSince = useVoiceChannelOccupiedSince(channel.id);
     const externalStreams = useVoiceChannelExternalStreamsList(channel.id);
     const unreadCount = useUnreadMessagesCount(channel.id);
     const hasUnreadMentions = useHasUnreadMentions(channel.id);
     const currentVoiceChannelId = useCurrentVoiceChannelId();
     const someoneIsSharingScreen = useHasSharingScreenUsers(channel.id);
+    const notificationLevel = useChannelNotificationLevel(channel.id);
+    const isMuted = notificationLevel === 'nothing';
 
     const [isDragOver, setIsDragOver] = useState(false);
 
@@ -114,6 +122,8 @@ const Voice = memo(
         <ItemWrapper
           {...props}
           isSelected={isSelected}
+          isUnread={unreadCount > 0}
+          isMuted={isMuted}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -135,10 +145,27 @@ const Voice = memo(
             <Volume2 className="h-4 w-4" />
           )}
 
-          <span className="flex-1 truncate">{channel.name}</span>
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="truncate">{channel.name}</span>
+            {channel.topic ? (
+              <span className="truncate text-[11px] leading-tight text-muted-foreground">
+                {channel.topic}
+              </span>
+            ) : null}
+          </span>
+
+          {occupiedSince !== null && (
+            <ElapsedTime
+              startedAt={occupiedSince}
+              className="text-[10px] text-green-500 shrink-0"
+            />
+          )}
 
           {unreadCount > 0 && (
             <UnreadCount count={unreadCount} hasMention={hasUnreadMentions} />
+          )}
+          {isMuted && unreadCount === 0 && (
+            <BellOff className="h-3.5 w-3.5 shrink-0 opacity-70" />
           )}
         </ItemWrapper>
         {channel.type === 'VOICE' && (
@@ -157,6 +184,7 @@ const Voice = memo(
             {externalStreams.map((stream) => (
               <ExternalStream
                 key={stream.streamId}
+                streamId={stream.streamId}
                 title={stream.title}
                 tracks={stream.tracks}
                 pluginId={stream.pluginId}
@@ -181,9 +209,11 @@ const Text = memo(({ channel, ...props }: TTextProps) => {
   const unreadCount = useUnreadMessagesCount(channel.id);
   const hasUnreadMessages = useHasUnreadMentions(channel.id);
   const hasTypingUsers = typingUsers.length > 0;
+  const notificationLevel = useChannelNotificationLevel(channel.id);
+  const isMuted = notificationLevel === 'nothing';
 
   return (
-    <ItemWrapper {...props}>
+    <ItemWrapper {...props} isUnread={unreadCount > 0} isMuted={isMuted}>
       <Hash className="h-4 w-4" />
       <span className="flex-1">{channel.name}</span>
       {hasTypingUsers && (
@@ -194,6 +224,9 @@ const Text = memo(({ channel, ...props }: TTextProps) => {
       {!hasTypingUsers && unreadCount > 0 && (
         <UnreadCount count={unreadCount} hasMention={hasUnreadMessages} />
       )}
+      {isMuted && !hasTypingUsers && unreadCount === 0 && (
+        <BellOff className="h-3.5 w-3.5 shrink-0 opacity-70" />
+      )}
     </ItemWrapper>
   );
 });
@@ -202,6 +235,8 @@ type TItemWrapperProps = {
   children: React.ReactNode;
   className?: string;
   isSelected: boolean;
+  isUnread?: boolean;
+  isMuted?: boolean;
   onClick: () => void;
   dragHandleProps?: React.HTMLAttributes<HTMLDivElement>;
   style?: React.CSSProperties;
@@ -215,6 +250,8 @@ const ItemWrapper = memo(
   ({
     children,
     isSelected,
+    isUnread = false,
+    isMuted = false,
     onClick,
     className,
     dragHandleProps,
@@ -233,9 +270,12 @@ const ItemWrapper = memo(
         onDragLeave={onDragLeave}
         onDrop={onDrop}
         className={cn(
-          'flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground select-none cursor-pointer',
+          'flex w-full cursor-pointer select-none items-center gap-2 rounded-[4px] px-2 py-1 text-[15px] text-muted-foreground hover:bg-card hover:text-foreground',
           {
-            'bg-accent text-accent-foreground': isSelected,
+            'bg-card text-foreground': isSelected,
+            'font-semibold text-foreground dark:text-white':
+              isUnread && !isSelected,
+            'opacity-80': isMuted && !isSelected && !isUnread,
             'cursor-default opacity-50 hover:bg-transparent hover:text-muted-foreground':
               disabled
           },

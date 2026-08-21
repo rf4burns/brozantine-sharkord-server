@@ -1,4 +1,4 @@
-import { getErrorMessage } from '@sharkord/shared';
+import { getErrorMessage } from '@kurier/shared';
 import chalk from 'chalk';
 import http from 'http';
 import z from 'zod';
@@ -6,6 +6,7 @@ import { config } from '../config';
 import { getWsInfo } from '../helpers/get-ws-info';
 import { logger } from '../logger';
 import { pluginManager } from '../plugins';
+import { backupRouteHandler } from './backup';
 import { healthRouteHandler } from './healthz';
 import {
   getRequestPathname,
@@ -66,6 +67,7 @@ const routeHandlers: Partial<
   GET: {
     exact: {
       '/healthz': (req, res) => healthRouteHandler(req, res),
+      '/backup': (req, res, ctx) => backupRouteHandler(req, res, ctx),
       '/info': (req, res) => infoRouteHandler(req, res),
       '/manifest.json': (req, res) => manifestRouteHandler(req, res)
     },

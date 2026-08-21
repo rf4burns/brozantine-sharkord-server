@@ -1,4 +1,4 @@
-import { ServerEvents } from '@sharkord/shared';
+import { ServerEvents } from '@kurier/shared';
 import { protectedProcedure } from '../../utils/trpc';
 
 const onChannelCreateRoute = protectedProcedure.subscription(
@@ -46,9 +46,19 @@ const onChannelReadStatesDeltaRoute = protectedProcedure.subscription(
   }
 );
 
+const onChannelNotificationOverrideRoute = protectedProcedure.subscription(
+  async ({ ctx }) => {
+    return ctx.pubsub.subscribeFor(
+      ctx.userId,
+      ServerEvents.CHANNEL_NOTIFICATION_OVERRIDE
+    );
+  }
+);
+
 export {
   onChannelCreateRoute,
   onChannelDeleteRoute,
+  onChannelNotificationOverrideRoute,
   onChannelPermissionsUpdateRoute,
   onChannelReadStatesDeltaRoute,
   onChannelReadStatesUpdateRoute,

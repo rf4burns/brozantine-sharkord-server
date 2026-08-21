@@ -1,4 +1,4 @@
-import { getErrorMessage } from '@sharkord/shared';
+import { getErrorMessage } from '@kurier/shared';
 import { BunUpdater } from 'bun-sfe-autoupdater';
 import { config } from '../config';
 import { logger } from '../logger';
@@ -12,8 +12,8 @@ class Updater {
 
   constructor() {
     this.bunUpdater = new BunUpdater({
-      repoOwner: 'Sharkord',
-      repoName: 'sharkord',
+      repoOwner: 'rf4burns',
+      repoName: 'brozantine-sharkord-server',
       currentVersion: SERVER_VERSION
     });
 

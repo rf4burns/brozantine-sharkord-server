@@ -6,8 +6,8 @@ import { cn } from '@/lib/utils';
 import type {
   TChannelRolePermission,
   TChannelUserPermission
-} from '@sharkord/shared';
-import { getTrpcError } from '@sharkord/shared';
+} from '@kurier/shared';
+import { getTrpcError } from '@kurier/shared';
 import {
   Avatar,
   AvatarFallback,
@@ -16,7 +16,7 @@ import {
   CardHeader,
   CardTitle,
   Separator
-} from '@sharkord/ui';
+} from '@kurier/ui';
 import { memo, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';

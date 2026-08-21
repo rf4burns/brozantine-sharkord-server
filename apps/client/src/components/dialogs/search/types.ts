@@ -1,4 +1,4 @@
-import type { TJoinedMessage } from '@sharkord/shared';
+import type { TJoinedMessage } from '@kurier/shared';
 
 export type TSearchResultMessage = TJoinedMessage & {
   plainContent: string;

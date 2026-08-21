@@ -1,5 +1,5 @@
 import { ChannelChip } from '@/components/channel-chip';
-import { parseDomCommand } from '@sharkord/shared';
+import { parseDomCommand } from '@kurier/shared';
 import { Element, type DOMNode } from 'html-react-parser';
 import { CommandOverride } from '../overrides/command';
 import { MentionOverride } from '../overrides/mention';
@@ -27,13 +27,20 @@ const serializer = (domNode: DOMNode, messageId: number) => {
     } else if (
       domNode instanceof Element &&
       domNode.name === 'span' &&
-      domNode.attribs['data-type'] === 'mention' &&
-      domNode.attribs['data-user-id']
+      domNode.attribs['data-type'] === 'mention'
     ) {
-      const userId = parseInt(domNode.attribs['data-user-id'], 10);
+      const mentionKind = domNode.attribs['data-mention-kind'];
 
-      if (!Number.isNaN(userId)) {
-        return <MentionOverride userId={userId} />;
+      if (mentionKind === 'everyone' || mentionKind === 'here') {
+        return <MentionOverride mentionKind={mentionKind} />;
+      }
+
+      if (domNode.attribs['data-user-id']) {
+        const userId = parseInt(domNode.attribs['data-user-id'], 10);
+
+        if (!Number.isNaN(userId)) {
+          return <MentionOverride userId={userId} />;
+        }
       }
     } else if (
       domNode instanceof Element &&

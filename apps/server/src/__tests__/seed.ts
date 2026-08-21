@@ -20,7 +20,7 @@ import {
   type TIRole,
   type TISettings,
   type TIUser
-} from '@sharkord/shared';
+} from '@kurier/shared';
 import { randomUUIDv7 } from 'bun';
 import { type BunSQLiteDatabase } from 'drizzle-orm/bun-sqlite';
 import {
@@ -135,6 +135,8 @@ const seedTestDb = async (db: BunSQLiteDatabase) => {
     color: '#ff0000',
     isPersistent: true,
     isDefault: false,
+    position: 2,
+    hoist: false,
     storageQuotaOverrideEnabled: false,
     storageSpaceQuota: 0,
     createdAt: firstStart
@@ -155,6 +157,8 @@ const seedTestDb = async (db: BunSQLiteDatabase) => {
     color: '#99aab5',
     isPersistent: true,
     isDefault: true,
+    position: 0,
+    hoist: false,
     storageQuotaOverrideEnabled: false,
     storageSpaceQuota: 0,
     createdAt: firstStart
@@ -178,6 +182,8 @@ const seedTestDb = async (db: BunSQLiteDatabase) => {
     color: '#95a5a6',
     isPersistent: false,
     isDefault: false,
+    position: 1,
+    hoist: false,
     storageQuotaOverrideEnabled: false,
     storageSpaceQuota: 0,
     createdAt: firstStart

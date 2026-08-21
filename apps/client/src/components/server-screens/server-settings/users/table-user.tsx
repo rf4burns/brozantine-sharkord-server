@@ -2,11 +2,11 @@ import { Dialog } from '@/components/dialogs/dialogs';
 import { UserAvatar } from '@/components/user-avatar';
 import { setModViewOpen } from '@/features/app/actions';
 import { openDialog } from '@/features/dialogs/actions';
-import { useUserRoles } from '@/features/server/hooks';
+import { useCan, useUserRoles } from '@/features/server/hooks';
 import { useOwnUserId, useUserStatus } from '@/features/server/users/hooks';
 import { useDateLocale } from '@/hooks/use-date-locale';
 import { cn } from '@/lib/utils';
-import { UserStatus, type TJoinedUser } from '@sharkord/shared';
+import { Permission, UserStatus, type TJoinedUser } from '@kurier/shared';
 import {
   Button,
   DropdownMenu,
@@ -14,7 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger
-} from '@sharkord/ui';
+} from '@kurier/ui';
 import { format, formatDistanceToNow } from 'date-fns';
 import { MoreVertical, Trash2, UserCog } from 'lucide-react';
 import { memo, useCallback } from 'react';
@@ -31,6 +31,7 @@ const TableUser = memo(({ user, refetch }: TTableUserProps) => {
   const roles = useUserRoles(user.id);
   const status = useUserStatus(user.id);
   const ownUserId = useOwnUserId();
+  const can = useCan();
 
   const onModerateClick = useCallback(() => {
     setModViewOpen(true, user.id);
@@ -124,7 +125,7 @@ const TableUser = memo(({ user, refetch }: TTableUserProps) => {
                 <UserCog className="h-4 w-4" />
                 {t('moderateUserAction')}
               </DropdownMenuItem>
-              {ownUserId !== user.id && (
+              {ownUserId !== user.id && can(Permission.DELETE_USERS) && (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem

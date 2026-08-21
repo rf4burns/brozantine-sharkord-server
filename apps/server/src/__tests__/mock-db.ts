@@ -22,12 +22,14 @@ import { seedTestDb } from './seed';
  */
 
 let tdb: BunSQLiteDatabase;
+let sqliteClient: Database | null = null;
 
 const initDb = async () => {
   const sqlite = new Database(':memory:', { create: true, strict: true });
 
   sqlite.run('PRAGMA foreign_keys = ON;');
 
+  sqliteClient = sqlite;
   tdb = drizzle({ client: sqlite });
 
   await migrate(tdb, { migrationsFolder: DRIZZLE_PATH });
@@ -37,6 +39,16 @@ const initDb = async () => {
 };
 
 await initDb();
+
+const snapshotDatabaseTo = (destPath: string) => {
+  if (!sqliteClient) {
+    throw new Error('sqlite client is not initialized');
+  }
+
+  const escaped = destPath.replaceAll("'", "''");
+
+  sqliteClient.run(`VACUUM INTO '${escaped}'`);
+};
 
 // create a Proxy that forwards all operations to the current tdb
 const dbProxy = new Proxy({} as BunSQLiteDatabase, {
@@ -53,11 +65,16 @@ const dbProxy = new Proxy({} as BunSQLiteDatabase, {
 
 mock.module('../db/index', () => ({
   db: dbProxy,
-  loadDb: async () => {} // No-op in tests
+  loadDb: async () => {},
+  snapshotDatabaseTo
 }));
 
-const setTestDb = (newDb: BunSQLiteDatabase) => {
+const setTestDb = (newDb: BunSQLiteDatabase, sqlite?: Database) => {
   tdb = newDb;
+
+  if (sqlite) {
+    sqliteClient = sqlite;
+  }
 };
 
 const getTestDb = () => tdb;

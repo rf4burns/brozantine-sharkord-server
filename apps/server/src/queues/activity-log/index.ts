@@ -1,4 +1,4 @@
-import type { ActivityLogType, TActivityLogDetailsMap } from '@sharkord/shared';
+import type { ActivityLogType, TActivityLogDetailsMap } from '@kurier/shared';
 import chalk from 'chalk';
 import Queue from 'queue';
 import { db } from '../../db';
@@ -17,7 +17,7 @@ activityLogQueue.autostart = true;
 type TEnqueueActivityLog<T extends ActivityLogType = ActivityLogType> = {
   type: T;
   details?: TActivityLogDetailsMap[T];
-  userId?: number;
+  userId?: number | null;
   ip?: string;
 };
 
@@ -36,7 +36,7 @@ const enqueueActivityLog = <T extends ActivityLogType>({
       userId,
       type: type,
       details,
-      ip: ip || getUserIp(userId) || null,
+      ip: ip || (userId != null ? getUserIp(userId) : undefined) || null,
       createdAt: date
     });
 

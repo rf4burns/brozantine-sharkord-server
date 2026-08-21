@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <rect width="128" height="128" rx="28" fill="#5C1524"/>
+  <rect x="8" y="8" width="112" height="112" rx="20" stroke="#C9A035" stroke-width="3.2"/>
+
+  <g fill="#C9A035">
+    <rect x="62.1" y="14.2" width="3.8" height="12.6" rx="0.7"/>
+    <rect x="57.4" y="16.8" width="13.2" height="3.8" rx="0.7"/>
+    <circle cx="64" cy="28.2" r="2.8"/>
+  </g>
+
+  <path
+    d="M42 54c0-14 8.5-26 22-26s22 12 22 26"
+    stroke="#C9A035"
+    stroke-width="6.2"
+    stroke-linecap="butt"
+  />
+
+  <g fill="#C9A035">
+    <path d="M42 46c-4.6-2.2-8.2-1-8.6-6.4-.4-4.6 3.6-6.4 6.4-3.4C38.6 31 44 31.2 44 38c2.8-2 6.6.6 5.4 5.2 2.8.6 4.8 4.6 1.6 7.2-3.2 1.4-6.6 0-9-4.4z"/>
+    <path d="M64 30.6c-1.8 3.2-4.8 5.6-4.8 9.2 0 2.2 1.4 3.6 3.2 3.6h3.2c1.8 0 3.2-1.4 3.2-3.6 0-3.6-3-6-4.8-9.2z"/>
+    <path d="M86 46c4.6-2.2 8.2-1 8.6-6.4.4-4.6-3.6-6.4-6.4-3.4C89.4 31 84 31.2 84 38c-2.8-2-6.6.6-5.4 5.2-2.8.6-4.8 4.6-1.6 7.2 3.2 1.4 6.6 0 9-4.4z"/>
+    <rect x="40" y="52.4" width="48" height="8.8" rx="1.1"/>
+    <path fill="#5C1524" d="M64 54.2 68.2 56.8 64 59.4 59.8 56.8z"/>
+  </g>
+
+  <!-- coil first so mouthpiece/bell can sit over the join -->
+  <circle cx="54" cy="82.5" r="16.6" fill="none" stroke="#C9A035" stroke-width="8.6"/>
+  <path d="M51.4 97.2v9.4" stroke="#C9A035" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M56.6 97.2v9.4" stroke="#C9A035" stroke-width="2.6" stroke-linecap="round"/>
+
+  <!-- mouthpiece: round disc tip, short stem, three rib rings into the coil -->
+  <g transform="translate(39.5 66) rotate(-48)">
+    <ellipse cx="-18.5" cy="0" rx="4.6" ry="5.4" fill="#C9A035"/>
+    <rect x="-14.5" y="-2.7" width="22" height="5.4" rx="1.1" fill="#C9A035"/>
+    <rect x="-11.2" y="-4.5" width="2.1" height="9" rx="0.6" fill="#C9A035"/>
+    <rect x="-7.2" y="-4.5" width="2.1" height="9" rx="0.6" fill="#C9A035"/>
+    <rect x="-3.2" y="-4.5" width="2.1" height="9" rx="0.6" fill="#C9A035"/>
+  </g>
+
+  <!-- bell: smooth flare from coil into an oval opening -->
+  <path
+    fill="#C9A035"
+    d="M67 73
+       C76 67 87 61.5 97 59
+       C103.5 57.5 110.5 60 113.5 66.5
+       C116 72.5 114.5 80.5 108.5 86.5
+       C100 95.5 84.5 99.5 71 96.5
+       C70 89 68 80.5 67 73Z"
+  />
+  <ellipse
+    cx="101.5"
+    cy="72"
+    rx="5"
+    ry="8.6"
+    transform="rotate(24 101.5 72)"
+    fill="#5C1524"
+  />
+</svg>

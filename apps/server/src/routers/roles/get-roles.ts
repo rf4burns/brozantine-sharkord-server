@@ -1,4 +1,4 @@
-import { Permission } from '@sharkord/shared';
+import { Permission } from '@kurier/shared';
 import { getRoles } from '../../db/queries/roles';
 import { protectedProcedure } from '../../utils/trpc';
 

@@ -1,5 +1,6 @@
-import { ActivityLogType, DisconnectCode, Permission } from '@sharkord/shared';
+import { ActivityLogType, DisconnectCode, Permission } from '@kurier/shared';
 import z from 'zod';
+import { assertCanModerateUser } from '../../helpers/role-hierarchy';
 import { enqueueActivityLog } from '../../queues/activity-log';
 import { invariant } from '../../utils/invariant';
 import { protectedProcedure } from '../../utils/trpc';
@@ -12,7 +13,8 @@ const kickRoute = protectedProcedure
     })
   )
   .mutation(async ({ ctx, input }) => {
-    await ctx.needsPermission(Permission.MANAGE_USERS);
+    await ctx.needsPermission(Permission.KICK_MEMBERS);
+    await assertCanModerateUser(ctx.userId, input.userId);
 
     const userWs = ctx.getUserWs(input.userId);
 

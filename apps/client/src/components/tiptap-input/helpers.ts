@@ -22,6 +22,6 @@ const isTextPresentation = (emoji: string): boolean => {
 
 // checks if the emoji should use the fallback image (if available) instead of the native emoji character
 const shouldUseFallbackImage = (emoji: TEmojiItem): boolean =>
-  !!emoji.fallbackImage && (!emoji.emoji || isTextPresentation(emoji.emoji));
+  !!emoji.fallbackImage;
 
 export { isTextPresentation, shouldUseFallbackImage, type TEmojiItem };

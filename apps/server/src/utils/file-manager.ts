@@ -8,7 +8,7 @@ import {
   type TFile,
   type TJoinedSettings,
   type TTempFile
-} from '@sharkord/shared';
+} from '@kurier/shared';
 import { randomUUIDv7 } from 'bun';
 import { createHash } from 'crypto';
 import { eq } from 'drizzle-orm';

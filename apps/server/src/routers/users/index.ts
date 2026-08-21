@@ -3,6 +3,7 @@ import { addRoleRoute } from './add-role';
 import { banRoute } from './ban';
 import { changeAvatarRoute } from './change-avatar';
 import { changeBannerRoute } from './change-banner';
+import { deafenRoute } from './deafen';
 import { deleteUserRoute } from './delete-user';
 import {
   onUserCreateRoute,
@@ -14,8 +15,10 @@ import {
 import { getUserInfoRoute } from './get-user-info';
 import { getUsersRoute } from './get-users';
 import { kickRoute } from './kick';
+import { muteRoute } from './mute';
 import { removeRoleRoute } from './remove-role';
 import { unbanRoute } from './unban';
+import { updateNicknameRoute } from './update-nickname';
 import { updatePasswordRoute } from './update-password';
 import { updateUserRoute } from './update-user';
 
@@ -25,12 +28,15 @@ export const usersRouter = t.router({
   addRole: addRoleRoute,
   removeRole: removeRoleRoute,
   update: updateUserRoute,
+  updateNickname: updateNicknameRoute,
   updatePassword: updatePasswordRoute,
   getInfo: getUserInfoRoute,
   getAll: getUsersRoute,
   kick: kickRoute,
   ban: banRoute,
   unban: unbanRoute,
+  mute: muteRoute,
+  deafen: deafenRoute,
   delete: deleteUserRoute,
   onJoin: onUserJoinRoute,
   onLeave: onUserLeaveRoute,

@@ -1,7 +1,7 @@
 import { getInitialsFromName } from '@/helpers/get-initials-from-name';
 import { cn } from '@/lib/utils';
+import { Avatar, AvatarFallback } from '@kurier/ui';
 import { AvatarImage } from '@radix-ui/react-avatar';
-import { Avatar, AvatarFallback } from '@sharkord/ui';
 import { Bot } from 'lucide-react';
 import { memo } from 'react';
 

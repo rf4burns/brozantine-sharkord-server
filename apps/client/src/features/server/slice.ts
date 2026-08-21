@@ -1,27 +1,30 @@
 import type { TPinnedCard } from '@/components/channel-view/voice/hooks/use-pin-card-controller';
 import { getLocalStorageItemBool, LocalStorageKey } from '@/helpers/storage';
+import {
+  UserStatus,
+  type TCategory,
+  type TChannel,
+  type TChannelNotificationLevel,
+  type TChannelNotificationOverridesMap,
+  type TChannelUserPermissionsMap,
+  type TCommandInfo,
+  type TCommandsMapByPlugin,
+  type TExternalStream,
+  type TExternalStreamsMap,
+  type TJoinedEmoji,
+  type TJoinedMessage,
+  type TJoinedPublicUser,
+  type TJoinedRole,
+  type TPluginComponentsMap,
+  type TPluginComponentsMapBySlotId,
+  type TPluginMetadata,
+  type TPublicServerSettings,
+  type TReadStateMap,
+  type TServerInfo,
+  type TVoiceMap,
+  type TVoiceUserState
+} from '@kurier/shared';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type {
-  TCategory,
-  TChannel,
-  TChannelUserPermissionsMap,
-  TCommandInfo,
-  TCommandsMapByPlugin,
-  TExternalStream,
-  TExternalStreamsMap,
-  TJoinedEmoji,
-  TJoinedMessage,
-  TJoinedPublicUser,
-  TJoinedRole,
-  TPluginComponentsMap,
-  TPluginComponentsMapBySlotId,
-  TPluginMetadata,
-  TPublicServerSettings,
-  TReadStateMap,
-  TServerInfo,
-  TVoiceMap,
-  TVoiceUserState
-} from '@sharkord/shared';
 import { mergeMessagesChronologically } from './helpers';
 import type {
   TDisconnectInfo,
@@ -61,6 +64,10 @@ export interface IServerState {
   readStatesMap: {
     [channelId: number]: number | undefined;
   };
+  notificationOverridesMap: TChannelNotificationOverridesMap;
+  mentionUnreadByChannel: {
+    [channelId: number]: number | undefined;
+  };
   pluginsMetadata: TPluginMetadata[];
   pluginCommands: TCommandsMapByPlugin;
   hideNonVideoParticipants: boolean;
@@ -97,12 +104,16 @@ const initialState: IServerState = {
   ownVoiceState: {
     micMuted: false,
     soundMuted: false,
+    serverMuted: false,
+    serverDeafened: false,
     webcamEnabled: false,
     sharingScreen: false
   },
   pinnedCard: undefined,
   channelPermissions: {},
   readStatesMap: {},
+  notificationOverridesMap: {},
+  mentionUnreadByChannel: {},
   pluginsMetadata: [],
   pluginCommands: {},
   hideNonVideoParticipants: getLocalStorageItemBool(
@@ -173,6 +184,7 @@ export const serverSlice = createSlice({
         externalStreamsMap: TExternalStreamsMap;
         channelPermissions: TChannelUserPermissionsMap;
         readStates: TReadStateMap;
+        notificationOverrides: TChannelNotificationOverridesMap;
         pluginsMetadata: TPluginMetadata[];
       }>
     ) => {
@@ -189,6 +201,7 @@ export const serverSlice = createSlice({
       state.serverId = action.payload.serverId;
       state.channelPermissions = action.payload.channelPermissions;
       state.readStatesMap = action.payload.readStates;
+      state.notificationOverridesMap = action.payload.notificationOverrides;
       state.pluginsMetadata = action.payload.pluginsMetadata;
     },
     addMessages: (
@@ -201,14 +214,28 @@ export const serverSlice = createSlice({
     ) => {
       const { channelId, messages } = action.payload;
       const existing = state.messagesMap[channelId] ?? [];
-
-      // dedupe: only add new IDs
-      const existingIds = new Set(existing.map((m) => m.id));
-      const filtered = messages.filter((m) => !existingIds.has(m.id));
+      const incomingIds = new Set(messages.map((m) => m.id));
+      const remaining = existing.filter((m) => !incomingIds.has(m.id));
 
       state.messagesMap[channelId] = mergeMessagesChronologically(
-        existing,
-        filtered
+        remaining,
+        messages
+      );
+    },
+    replaceOptimisticMessage: (
+      state,
+      action: PayloadAction<{
+        channelId: number;
+        tempId: number;
+        message: TJoinedMessage;
+      }>
+    ) => {
+      const { channelId, tempId, message } = action.payload;
+      const existing = state.messagesMap[channelId] ?? [];
+
+      state.messagesMap[channelId] = mergeMessagesChronologically(
+        existing.filter((m) => m.id !== tempId),
+        [message]
       );
     },
     updateMessage: (
@@ -255,6 +282,34 @@ export const serverSlice = createSlice({
 
       state.messagesMap[action.payload.channelId] = messages.filter(
         (m) => m.id !== action.payload.messageId
+      );
+    },
+    pruneInactiveChannelMessages: (
+      state,
+      action: PayloadAction<{ keepIds: number[] }>
+    ) => {
+      const keep = new Set(action.payload.keepIds);
+
+      for (const channelId of Object.keys(state.messagesMap)) {
+        const id = Number(channelId);
+
+        if (!keep.has(id)) {
+          delete state.messagesMap[id];
+        }
+      }
+    },
+    trimOldestMessages: (
+      state,
+      action: PayloadAction<{ channelId: number; keep: number }>
+    ) => {
+      const messages = state.messagesMap[action.payload.channelId];
+
+      if (!messages || messages.length <= action.payload.keep) {
+        return;
+      }
+
+      state.messagesMap[action.payload.channelId] = messages.slice(
+        messages.length - action.payload.keep
       );
     },
 
@@ -395,25 +450,40 @@ export const serverSlice = createSlice({
 
       state.users.push(action.payload);
     },
-    wipeUser: (state, action: PayloadAction<{ userId: number }>) => {
-      const { userId } = action.payload;
+    tombstoneUser: (
+      state,
+      action: PayloadAction<{ userId: number; wipe: boolean }>
+    ) => {
+      const { userId, wipe } = action.payload;
+      const index = state.users.findIndex((u) => u.id === userId);
 
-      // remove user
-      state.users = state.users.filter((u) => u.id !== userId);
+      if (index !== -1) {
+        state.users[index] = {
+          ...state.users[index],
+          deleted: true,
+          banned: true,
+          status: UserStatus.OFFLINE
+        };
+      }
 
-      // remove user from typing states
       for (const channelId in state.typingMap) {
         state.typingMap[channelId] = state.typingMap[channelId].filter(
           (id) => id !== userId
         );
       }
 
-      // remove user from voice channels
       for (const channelId in state.voiceMap) {
         delete state.voiceMap[channelId].users[userId];
+
+        if (Object.keys(state.voiceMap[channelId].users).length === 0) {
+          state.voiceMap[channelId].occupiedSince = null;
+        }
       }
 
-      // remove user from messages and reactions
+      if (!wipe) {
+        return;
+      }
+
       for (const channelId in state.messagesMap) {
         state.messagesMap[channelId] = state.messagesMap[channelId]
           .filter((m) => m.userId !== userId)
@@ -425,7 +495,6 @@ export const serverSlice = createSlice({
           }));
       }
 
-      // remove user from thread messages and reactions
       for (const parentId in state.threadMessagesMap) {
         state.threadMessagesMap[parentId] = state.threadMessagesMap[parentId]
           .filter((m) => m.userId !== userId)
@@ -437,64 +506,7 @@ export const serverSlice = createSlice({
           }));
       }
 
-      // remove user from emojis
       state.emojis = state.emojis.filter((e) => e.userId !== userId);
-    },
-    reassignUser: (
-      state,
-      action: PayloadAction<{ userId: number; deletedUserId: number }>
-    ) => {
-      const { userId, deletedUserId } = action.payload;
-
-      // remove user
-      state.users = state.users.filter((u) => u.id !== userId);
-
-      // remove user from typing states
-      for (const channelId in state.typingMap) {
-        state.typingMap[channelId] = state.typingMap[channelId].filter(
-          (id) => id !== userId
-        );
-      }
-
-      // remove user from voice channels
-      for (const channelId in state.voiceMap) {
-        delete state.voiceMap[channelId].users[userId];
-      }
-
-      // reassign messages and reactions
-      for (const channelId in state.messagesMap) {
-        state.messagesMap[channelId] = state.messagesMap[channelId].map(
-          (m) => ({
-            ...m,
-            userId: m.userId === userId ? deletedUserId : m.userId,
-            reactions: m.reactions.map((reaction) =>
-              reaction.userId === userId
-                ? { ...reaction, userId: deletedUserId }
-                : reaction
-            )
-          })
-        );
-      }
-
-      // reassign thread messages and reactions
-      for (const parentId in state.threadMessagesMap) {
-        state.threadMessagesMap[parentId] = state.threadMessagesMap[
-          parentId
-        ].map((m) => ({
-          ...m,
-          userId: m.userId === userId ? deletedUserId : m.userId,
-          reactions: m.reactions.map((reaction) =>
-            reaction.userId === userId
-              ? { ...reaction, userId: deletedUserId }
-              : reaction
-          )
-        }));
-      }
-
-      // reassign emojis
-      state.emojis = state.emojis.map((e) =>
-        e.userId === userId ? { ...e, userId: deletedUserId } : e
-      );
     },
 
     // SERVER SETTINGS ------------------------------------------------------------
@@ -602,6 +614,31 @@ export const serverSlice = createSlice({
 
       state.readStatesMap[channelId] = count;
     },
+    setChannelNotificationOverride: (
+      state,
+      action: PayloadAction<{
+        channelId: number;
+        level: TChannelNotificationLevel;
+      }>
+    ) => {
+      const { channelId, level } = action.payload;
+
+      if (level === 'all') {
+        delete state.notificationOverridesMap[channelId];
+        return;
+      }
+
+      state.notificationOverridesMap[channelId] = level;
+    },
+    incrementMentionUnread: (state, action: PayloadAction<number>) => {
+      const channelId = action.payload;
+
+      state.mentionUnreadByChannel[channelId] =
+        (state.mentionUnreadByChannel[channelId] ?? 0) + 1;
+    },
+    clearMentionUnread: (state, action: PayloadAction<number>) => {
+      delete state.mentionUnreadByChannel[action.payload];
+    },
 
     // EMOJIS ------------------------------------------------------------
 
@@ -677,15 +714,27 @@ export const serverSlice = createSlice({
         channelId: number;
         userId: number;
         state: TVoiceUserState;
+        joinedAt: number;
+        occupiedSince: number | null;
       }>
     ) => {
-      const { channelId, userId, state: userState } = action.payload;
+      const {
+        channelId,
+        userId,
+        state: userState,
+        joinedAt,
+        occupiedSince
+      } = action.payload;
 
       if (!state.voiceMap[channelId]) {
-        state.voiceMap[channelId] = { users: {} };
+        state.voiceMap[channelId] = { users: {}, occupiedSince: null };
       }
 
-      state.voiceMap[channelId].users[userId] = userState;
+      state.voiceMap[channelId].occupiedSince = occupiedSince;
+      state.voiceMap[channelId].users[userId] = {
+        ...userState,
+        joinedAt
+      };
     },
     removeUserFromVoiceChannel: (
       state,
@@ -696,6 +745,10 @@ export const serverSlice = createSlice({
       if (!state.voiceMap[channelId]) return;
 
       delete state.voiceMap[channelId].users[userId];
+
+      if (Object.keys(state.voiceMap[channelId].users).length === 0) {
+        state.voiceMap[channelId].occupiedSince = null;
+      }
     },
     updateVoiceUserState: (
       state,

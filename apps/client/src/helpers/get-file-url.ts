@@ -1,24 +1,18 @@
-import type { TFile } from '@sharkord/shared';
+import type { TFile } from '@kurier/shared';
+import { getActiveHost } from './saved-hosts';
 
-const getHostFromServer = () => {
-  if (import.meta.env.MODE === 'development') {
-    return 'localhost:4991';
-  }
-
-  return window.location.host;
-};
+const getHostFromServer = () => getActiveHost();
 
 const getUrlFromServer = () => {
-  if (import.meta.env.MODE === 'development') {
-    return 'http://localhost:4991';
+  const host = getHostFromServer();
+
+  if (import.meta.env.MODE === 'development' && host.startsWith('localhost')) {
+    return `http://${host}`;
   }
 
-  const host = window.location.host;
   const currentProtocol = window.location.protocol;
 
-  const finalUrl = `${currentProtocol}//${host}`;
-
-  return finalUrl;
+  return `${currentProtocol}//${host}`;
 };
 
 const getFileUrl = (file: TFile | undefined | null) => {

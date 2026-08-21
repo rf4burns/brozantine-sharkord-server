@@ -1,5 +1,6 @@
 import { closeServerScreens } from '@/features/server-screens/actions';
 import { useAdminChannelGeneral } from '@/features/server/admin/hooks';
+import { ChannelType } from '@kurier/shared';
 import {
   Button,
   Card,
@@ -11,7 +12,7 @@ import {
   Input,
   Switch,
   Textarea
-} from '@sharkord/ui';
+} from '@kurier/ui';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -42,11 +43,21 @@ const General = memo(({ channelId }: TGeneralProps) => {
           />
         </Group>
 
-        <Group label={t('channelTopicLabel')}>
+        <Group
+          label={
+            channel.type === ChannelType.VOICE
+              ? t('channelStatusLabel')
+              : t('channelTopicLabel')
+          }
+        >
           <Textarea
             value={channel.topic ?? ''}
             onChange={(e) => onChange('topic', e.target.value || null)}
-            placeholder={t('channelTopicPlaceholder')}
+            placeholder={
+              channel.type === ChannelType.VOICE
+                ? t('channelStatusPlaceholder')
+                : t('channelTopicPlaceholder')
+            }
           />
         </Group>
 

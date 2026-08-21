@@ -1,5 +1,5 @@
+import { TestId } from '@kurier/shared';
 import { expect, test } from '@playwright/test';
-import { TestId } from '@sharkord/shared';
 
 test.describe('Connect Screen', () => {
   test('should display the connect screen with all essential elements', async ({
@@ -7,7 +7,7 @@ test.describe('Connect Screen', () => {
   }) => {
     await page.goto('/');
 
-    const logo = page.getByAltText('Sharkord');
+    const logo = page.getByAltText('Kurier');
     await expect(logo).toBeVisible();
 
     await expect(page.getByText('Identity')).toBeVisible();

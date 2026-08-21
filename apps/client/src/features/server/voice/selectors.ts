@@ -5,6 +5,21 @@ const DEFAULT_OBJECT = {};
 
 export const voiceMapSelector = (state: IRootState) => state.server.voiceMap;
 
+export const voiceUserStateByUserIdSelector = createCachedSelector(
+  [voiceMapSelector, (_: IRootState, userId: number) => userId],
+  (voiceMap, userId) => {
+    for (const channel of Object.values(voiceMap)) {
+      const state = channel.users[userId];
+
+      if (state) {
+        return state;
+      }
+    }
+
+    return undefined;
+  }
+)((_, userId: number) => userId);
+
 export const ownVoiceStateSelector = (state: IRootState) => {
   return state.server.ownVoiceState;
 };
@@ -21,6 +36,11 @@ export const voiceChannelExternalStreamsSelector = (
   state: IRootState,
   channelId: number
 ) => state.server.externalStreamsMap[channelId];
+
+export const voiceChannelOccupiedSinceSelector = createCachedSelector(
+  [voiceChannelStateSelector],
+  (voiceState) => voiceState?.occupiedSince ?? null
+)((_state: IRootState, channelId: number) => channelId);
 
 export const voiceChannelExternalStreamsListSelector = createCachedSelector(
   voiceChannelExternalStreamsSelector,

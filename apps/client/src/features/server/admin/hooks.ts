@@ -2,7 +2,7 @@ import { requestConfirmation } from '@/features/dialogs/actions';
 import { useForm } from '@/hooks/use-form';
 import { getTRPCClient } from '@/lib/trpc';
 import {
-  DELETED_USER_IDENTITY_AND_NAME,
+  isDeletedUser,
   parseTrpcErrors,
   Permission,
   STORAGE_DEFAULT_IMAGE_OPTIMIZATION_QUALITY,
@@ -32,7 +32,7 @@ import {
   type TStorageData,
   type TStorageSettings,
   type TTrpcErrors
-} from '@sharkord/shared';
+} from '@kurier/shared';
 import { filesize } from 'filesize';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -559,9 +559,7 @@ export const useAdminUsers = () => {
     const trpc = getTRPCClient();
     const users = await trpc.users.getAll.query();
 
-    const filteredUsers = users.filter(
-      (user) => user.name !== DELETED_USER_IDENTITY_AND_NAME
-    );
+    const filteredUsers = users.filter((user) => !isDeletedUser(user));
 
     setUsers(filteredUsers);
     setLoading(false);

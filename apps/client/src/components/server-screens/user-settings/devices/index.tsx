@@ -3,7 +3,7 @@ import { getVoiceControlsBridge } from '@/components/voice-provider/controls-bri
 import { closeServerScreens } from '@/features/server-screens/actions';
 import { useCurrentVoiceChannelId } from '@/features/server/channels/hooks';
 import { usePublicServerSettings } from '@/features/server/hooks';
-import { useOwnVoiceState } from '@/features/server/voice/hooks';
+import { useOwnVoiceState, useVoice } from '@/features/server/voice/hooks';
 import { MICROPHONE_GATE_DEFAULT_THRESHOLD_DB } from '@/helpers/audio-gate';
 import {
   getNoiseGateWorkletAvailabilitySnapshot,
@@ -13,9 +13,17 @@ import {
   getRestrictOwnAudioSupport,
   getSuppressLocalAudioPlaybackSupport
 } from '@/helpers/get-display-media-support';
+import { DEFAULT_PTT_KEYBIND } from '@/helpers/ptt-keybind';
 import { useForm } from '@/hooks/use-form';
-import { NoiseSuppression, Resolution, VideoCodec } from '@/types';
-import { DEFAULT_BITRATE } from '@sharkord/shared';
+import { cn } from '@/lib/utils';
+import {
+  NoiseSuppression,
+  Resolution,
+  VideoCodec,
+  VoiceInputMode,
+  type TPttKeybind
+} from '@/types';
+import { DEFAULT_BITRATE } from '@kurier/shared';
 import {
   Alert,
   AlertDescription,
@@ -37,7 +45,7 @@ import {
   Separator,
   Slider,
   Switch
-} from '@sharkord/ui';
+} from '@kurier/ui';
 import { filesize } from 'filesize';
 import { Info } from 'lucide-react';
 import {
@@ -52,6 +60,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useMicrophoneTest } from './hooks/use-microphone-test';
 import { useWebcamTest } from './hooks/use-webcam-test';
+import { KeybindCapture } from './keybind-capture';
 import { MicrophoneTestLevelBar } from './microphone-test-level-bar';
 import { ResolutionFpsControl } from './resolution-fps-control';
 import { RestrictOwnAudioAlert } from './restrict-own-audio-alert';
@@ -65,6 +74,11 @@ const Devices = memo(() => {
   const currentVoiceChannelId = useCurrentVoiceChannelId();
   const settings = usePublicServerSettings();
   const ownVoiceState = useOwnVoiceState();
+  const { isMicMonitoring, toggleMicMonitor } = useVoice();
+
+  const onToggleMicMonitor = useCallback(() => {
+    void toggleMicMonitor();
+  }, [toggleMicMonitor]);
   const {
     devices,
     saveDevices,
@@ -127,6 +141,18 @@ const Devices = memo(() => {
     saveDevices(values);
     toast.success(t('deviceSettingsSaved'));
   }, [saveDevices, values, t]);
+  const selectVadMode = useCallback(() => {
+    onChange('inputMode', VoiceInputMode.VAD);
+  }, [onChange]);
+  const selectPttMode = useCallback(() => {
+    onChange('inputMode', VoiceInputMode.PTT);
+  }, [onChange]);
+  const handlePttKeybindChange = useCallback(
+    (keybind: TPttKeybind) => {
+      onChange('pttKeybind', keybind);
+    },
+    [onChange]
+  );
   const didPrimeDevicesOnGrantedRef = useRef(false);
   const mutedByTestRef = useRef<{
     previousMicMuted: boolean;
@@ -320,6 +346,53 @@ const Devices = memo(() => {
               </SelectContent>
             </Select>
 
+            <Group label={t('inputModeLabel')} description={t('inputModeDesc')}>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className={cn(
+                    'rounded-md border p-3 text-left transition-colors',
+                    values.inputMode === VoiceInputMode.VAD
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:bg-muted/40'
+                  )}
+                  onClick={selectVadMode}
+                >
+                  <div className="text-sm font-medium">{t('inputModeVad')}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {t('inputModeVadDesc')}
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  className={cn(
+                    'rounded-md border p-3 text-left transition-colors',
+                    values.inputMode === VoiceInputMode.PTT
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:bg-muted/40'
+                  )}
+                  onClick={selectPttMode}
+                >
+                  <div className="text-sm font-medium">{t('inputModePtt')}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {t('inputModePttDesc')}
+                  </div>
+                </button>
+              </div>
+            </Group>
+
+            {values.inputMode === VoiceInputMode.PTT && (
+              <Group
+                label={t('pttKeybindLabel')}
+                description={t('pttKeybindDesc')}
+              >
+                <KeybindCapture
+                  value={values.pttKeybind ?? DEFAULT_PTT_KEYBIND}
+                  onChange={handlePttKeybindChange}
+                />
+              </Group>
+            )}
+
             <Group
               label={t('noiseSuppressionLabel')}
               className="my-4"
@@ -372,25 +445,31 @@ const Devices = memo(() => {
                 />
               </Group>
 
-              <Group label={t('noiseGateLabel')}>
-                <Switch
-                  checked={values.noiseGateEnabled}
-                  disabled={!isNoiseGateAvailable}
-                  onCheckedChange={(checked) =>
-                    onChange('noiseGateEnabled', checked)
-                  }
-                />
-              </Group>
+              {values.inputMode === VoiceInputMode.VAD && (
+                <Group
+                  label={t('vadSensitivityLabel')}
+                  description={t('vadSensitivityDesc')}
+                >
+                  <Switch
+                    checked={values.noiseGateEnabled}
+                    disabled={!isNoiseGateAvailable}
+                    onCheckedChange={(checked) =>
+                      onChange('noiseGateEnabled', checked)
+                    }
+                  />
+                </Group>
+              )}
             </div>
 
-            {!isNoiseGateAvailable && (
-              <p className="text-xs text-muted-foreground">
-                {t('noiseGateUnavailable')}
-                {noiseGateWorkletAvailability.reason
-                  ? ` ${noiseGateWorkletAvailability.reason}`
-                  : ''}
-              </p>
-            )}
+            {!isNoiseGateAvailable &&
+              values.inputMode === VoiceInputMode.VAD && (
+                <p className="text-xs text-muted-foreground">
+                  {t('noiseGateUnavailable')}
+                  {noiseGateWorkletAvailability.reason
+                    ? ` ${noiseGateWorkletAvailability.reason}`
+                    : ''}
+                </p>
+              )}
           </Group>
 
           <Group label={t('microphoneTestLabel')}>
@@ -427,7 +506,10 @@ const Devices = memo(() => {
 
             <MicrophoneTestLevelBar
               isTesting={isTesting}
-              noiseGateEnabled={values.noiseGateEnabled}
+              noiseGateEnabled={
+                values.inputMode === VoiceInputMode.VAD &&
+                values.noiseGateEnabled
+              }
               noiseGateControlsDisabled={!isNoiseGateAvailable}
               noiseGateThresholdDb={values.noiseGateThresholdDb}
               onThresholdChange={(value) =>
@@ -444,6 +526,48 @@ const Devices = memo(() => {
             )}
 
             <audio ref={testAudioRef} className="hidden" />
+          </Group>
+
+          <Group
+            label={t('attenuationLabel')}
+            description={t('attenuationDesc')}
+          >
+            <Switch
+              checked={!!values.attenuationEnabled}
+              onCheckedChange={(checked) =>
+                onChange('attenuationEnabled', checked)
+              }
+            />
+            {values.attenuationEnabled && (
+              <Group label={t('attenuationAmountLabel')}>
+                <Slider
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={[values.attenuationPercent ?? 80]}
+                  onValueChange={(value) =>
+                    onChange('attenuationPercent', value[0] ?? 80)
+                  }
+                  rightSlot={
+                    <span className="text-xs text-muted-foreground w-10 text-right">
+                      {values.attenuationPercent ?? 80}%
+                    </span>
+                  }
+                />
+              </Group>
+            )}
+          </Group>
+
+          <Group
+            label={t('skipVoiceDeviceCheckLabel')}
+            description={t('skipVoiceDeviceCheckDesc')}
+          >
+            <Switch
+              checked={!!values.skipVoiceDeviceCheck}
+              onCheckedChange={(checked) =>
+                onChange('skipVoiceDeviceCheck', checked)
+              }
+            />
           </Group>
         </div>
 
@@ -627,6 +751,18 @@ const Devices = memo(() => {
             </div>
 
             <Group
+              label={t('shareSystemAudioLabel')}
+              description={t('shareSystemAudioDesc')}
+            >
+              <Switch
+                checked={!!values.shareSystemAudio}
+                onCheckedChange={(checked) =>
+                  onChange('shareSystemAudio', checked)
+                }
+              />
+            </Group>
+
+            <Group
               label={t('restrictOwnAudioLabel')}
               description={t('restrictOwnAudioDesc')}
             >
@@ -662,6 +798,17 @@ const Devices = memo(() => {
                   isSupported={isSuppressLocalAudioPlaybackSupported}
                 />
               )}
+            </Group>
+
+            <Group
+              label={t('micMonitorLabel')}
+              description={t('micMonitorDesc')}
+            >
+              <Switch
+                checked={isMicMonitoring}
+                disabled={!currentVoiceChannelId}
+                onCheckedChange={onToggleMicMonitor}
+              />
             </Group>
 
             <span className="text-sm text-muted-foreground">

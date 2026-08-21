@@ -1,11 +1,12 @@
-import { isEmojiOnlyMessage, type TJoinedMessage } from '@sharkord/shared';
+import { isEmojiOnlyMessage, type TJoinedMessage } from '@kurier/shared';
 import parse, { type DOMNode } from 'html-react-parser';
 import type { ReactNode } from 'react';
+import { getDisplayHtmlWithoutGifs, isVisuallyEmptyHtml } from './gif-urls';
 import { serializer } from './serializer';
 
 const MAX_CACHE_SIZE = 500;
 
-const parsedMessageCache = new Map<string, ReactNode>();
+const parsedMessageCache = new Map<string, ReactNode | null>();
 const emojiOnlyCache = new Map<string, boolean>();
 
 const trimCache = (cache: Map<string, unknown>) => {
@@ -32,7 +33,15 @@ const getParsedMessageHtml = (message: TJoinedMessage) => {
 
   trimCache(parsedMessageCache);
 
-  const parsed = parse(message.content ?? '', {
+  const displayHtml = getDisplayHtmlWithoutGifs(message.content ?? '');
+
+  if (isVisuallyEmptyHtml(displayHtml)) {
+    parsedMessageCache.set(cacheKey, null);
+
+    return null;
+  }
+
+  const parsed = parse(displayHtml, {
     replace: (domNode: DOMNode) => serializer(domNode, message.id)
   });
 

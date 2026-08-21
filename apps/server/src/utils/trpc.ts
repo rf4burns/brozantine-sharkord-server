@@ -3,7 +3,7 @@ import {
   UserStatus,
   type Permission,
   type TUser
-} from '@sharkord/shared';
+} from '@kurier/shared';
 import { initTRPC, TRPCError } from '@trpc/server';
 import chalk from 'chalk';
 import type WebSocket from 'ws';
@@ -31,6 +31,8 @@ export type Context = {
   needsPermission: (
     targetPermission: Permission | Permission[]
   ) => Promise<void>;
+  hasAnyPermission: (permissions: Permission[]) => Promise<boolean>;
+  needsAnyPermission: (permissions: Permission[]) => Promise<void>;
   hasChannelPermission: (
     channelId: number,
     targetPermission: ChannelPermission

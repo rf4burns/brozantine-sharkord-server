@@ -1,10 +1,11 @@
-import { ActivityLogType, Permission } from '@sharkord/shared';
+import { ActivityLogType, Permission } from '@kurier/shared';
 import { eq } from 'drizzle-orm';
 import z from 'zod';
 import { db } from '../../db';
 import { publishUser } from '../../db/publishers';
 import { users } from '../../db/schema';
 import { enqueueActivityLog } from '../../queues/activity-log';
+import { invariant } from '../../utils/invariant';
 import { protectedProcedure } from '../../utils/trpc';
 
 const unbanRoute = protectedProcedure
@@ -14,7 +15,18 @@ const unbanRoute = protectedProcedure
     })
   )
   .mutation(async ({ ctx, input }) => {
-    await ctx.needsPermission(Permission.MANAGE_USERS);
+    await ctx.needsPermission(Permission.BAN_MEMBERS);
+
+    const targetUser = await db
+      .select({ deleted: users.deleted })
+      .from(users)
+      .where(eq(users.id, input.userId))
+      .get();
+
+    invariant(!targetUser?.deleted, {
+      code: 'BAD_REQUEST',
+      message: 'Cannot unban a deleted user.'
+    });
 
     await db
       .update(users)

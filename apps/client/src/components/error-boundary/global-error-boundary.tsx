@@ -6,7 +6,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle
-} from '@sharkord/ui';
+} from '@kurier/ui';
 import { Github, RefreshCw } from 'lucide-react';
 import { memo, type ReactNode, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -20,7 +20,8 @@ type TGlobalErrorFallbackProps = {
   reset: () => void;
 };
 
-const GITHUB_ISSUES_URL = 'https://github.com/Sharkord/sharkord/issues';
+const GITHUB_ISSUES_URL =
+  'https://github.com/rf4burns/brozantine-sharkord-server/issues';
 
 const copyErrorDetails = (
   error: Error,

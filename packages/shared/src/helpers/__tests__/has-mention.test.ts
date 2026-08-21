@@ -77,4 +77,26 @@ describe('has-mention', () => {
       '<p>Hello <span class="mention" data-type="mention" data-user-id="123" data-name="user">@user</span></p>';
     expect(hasMention(content, 123)).toBe(true);
   });
+
+  test('should return true for an @everyone mention', () => {
+    const content =
+      '<p><span data-type="mention" data-mention-kind="everyone">@everyone</span></p>';
+
+    expect(hasMention(content, 123)).toBe(true);
+  });
+
+  test('should return true for an @here mention when the reader is online', () => {
+    const content =
+      '<p><span data-type="mention" data-mention-kind="here">@here</span></p>';
+
+    expect(hasMention(content, 123)).toBe(true);
+    expect(hasMention(content, 123, { isOnline: true })).toBe(true);
+  });
+
+  test('should return false for an @here mention when the reader is offline', () => {
+    const content =
+      '<p><span data-type="mention" data-mention-kind="here">@here</span></p>';
+
+    expect(hasMention(content, 123, { isOnline: false })).toBe(false);
+  });
 });

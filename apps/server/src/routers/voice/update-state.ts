@@ -1,4 +1,4 @@
-import { ChannelPermission, Permission, ServerEvents } from '@sharkord/shared';
+import { ChannelPermission, Permission, ServerEvents } from '@kurier/shared';
 import { z } from 'zod';
 import { VoiceRuntime } from '../../runtimes/voice';
 import { invariant } from '../../utils/invariant';
@@ -23,11 +23,19 @@ const updateVoiceStateRoute = protectedProcedure
 
     const validatedInput = { ...input };
 
-    const [canSpeak, canUseWebcam, canShareScreen] = await Promise.all([
+    const [
+      canSpeak,
+      hasWebcamPermission,
+      hasScreenPermission,
+      canUseWebcamChannel,
+      canShareScreenChannel
+    ] = await Promise.all([
       ctx.hasChannelPermission(
         ctx.currentVoiceChannelId,
         ChannelPermission.SPEAK
       ),
+      ctx.hasPermission(Permission.ENABLE_WEBCAM),
+      ctx.hasPermission(Permission.SHARE_SCREEN),
       ctx.hasChannelPermission(
         ctx.currentVoiceChannelId,
         ChannelPermission.WEBCAM
@@ -37,6 +45,9 @@ const updateVoiceStateRoute = protectedProcedure
         ChannelPermission.SHARE_SCREEN
       )
     ]);
+
+    const canUseWebcam = hasWebcamPermission && canUseWebcamChannel;
+    const canShareScreen = hasScreenPermission && canShareScreenChannel;
 
     if (!canSpeak) {
       delete validatedInput.micMuted;
@@ -56,6 +67,16 @@ const updateVoiceStateRoute = protectedProcedure
       code: 'INTERNAL_SERVER_ERROR',
       message: 'Voice runtime not found for this channel'
     });
+
+    const currentState = runtime.getUserState(ctx.user.id);
+
+    if (currentState.serverMuted || currentState.serverDeafened) {
+      delete validatedInput.micMuted;
+    }
+
+    if (currentState.serverDeafened) {
+      delete validatedInput.soundMuted;
+    }
 
     runtime.updateUserState(ctx.user.id, {
       ...validatedInput

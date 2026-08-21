@@ -1,4 +1,4 @@
-import { ActivityLogType, Permission } from '@sharkord/shared';
+import { ActivityLogType, Permission } from '@kurier/shared';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../../db';
@@ -6,6 +6,7 @@ import { fallbackUsersToDefaultRole } from '../../db/mutations/users';
 import { publishRole } from '../../db/publishers';
 import { getRole } from '../../db/queries/roles';
 import { roles } from '../../db/schema';
+import { assertCanManageRole } from '../../helpers/role-hierarchy';
 import { enqueueActivityLog } from '../../queues/activity-log';
 import { invariant } from '../../utils/invariant';
 import { protectedProcedure } from '../../utils/trpc';
@@ -18,6 +19,8 @@ const deleteRoleRoute = protectedProcedure
   )
   .mutation(async ({ input, ctx }) => {
     await ctx.needsPermission(Permission.MANAGE_ROLES);
+
+    await assertCanManageRole(ctx.userId, input.roleId);
 
     const role = await getRole(input.roleId);
 

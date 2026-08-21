@@ -1,8 +1,8 @@
-import type { PluginSettings } from '@sharkord/plugin-sdk';
+import type { PluginSettings } from '@kurier/plugin-sdk';
 import type {
   TPluginSettingDefinition,
   TPluginSettingsResponse
-} from '@sharkord/shared';
+} from '@kurier/shared';
 import { eq } from 'drizzle-orm';
 import { db } from '../db';
 import { pluginData } from '../db/schema';

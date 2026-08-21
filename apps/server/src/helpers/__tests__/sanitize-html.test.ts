@@ -157,6 +157,16 @@ describe('sanitize-html', () => {
     expect(sanitizeMessageHtml(input)).toBe(input);
   });
 
+  test('should preserve everyone and here mention kinds', () => {
+    const everyone =
+      '<span data-type="mention" data-mention-kind="everyone" class="mention">@everyone</span>';
+    const here =
+      '<span data-type="mention" data-mention-kind="here" class="mention">@here</span>';
+
+    expect(sanitizeMessageHtml(everyone)).toBe(everyone);
+    expect(sanitizeMessageHtml(here)).toBe(here);
+  });
+
   test('should preserve channel reference <span> with data-channel-id attribute', () => {
     const input =
       '<span data-type="channel-reference" data-channel-id="42" class="channel-reference"></span>';

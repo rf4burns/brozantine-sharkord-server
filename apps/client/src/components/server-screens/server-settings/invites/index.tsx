@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
   LoadingCard
-} from '@sharkord/ui';
+} from '@kurier/ui';
 import { Plus } from 'lucide-react';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';

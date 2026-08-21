@@ -1,34 +1,50 @@
 import { ResizableSidebar } from '@/components/resizable-sidebar';
 import { UserAvatar } from '@/components/user-avatar';
-import { useUsers } from '@/features/server/users/hooks';
+import {
+  useMemberListGroups,
+  useMemberListHiddenCount,
+  useUserRoles
+} from '@/features/server/hooks';
+import { getRenderedUsername } from '@/helpers/get-rendered-username';
+import { getRoleNameColor } from '@/helpers/get-role-name-color';
 import { LocalStorageKey } from '@/helpers/storage';
 import { cn } from '@/lib/utils';
-import { DELETED_USER_IDENTITY_AND_NAME } from '@sharkord/shared';
-import { memo, useMemo } from 'react';
+import { UserStatus } from '@kurier/shared';
+import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { UserPopover } from '../user-popover';
 
-const MAX_USERS_TO_SHOW = 100;
 const MIN_WIDTH = 180;
-const MAX_WIDTH = 360;
-const DEFAULT_WIDTH = 240; // w-60 = 240px
+const MAX_WIDTH = 420;
+const DEFAULT_WIDTH = 240;
 
 type TUserProps = {
   userId: number;
   name: string;
   banned: boolean;
+  status?: UserStatus;
 };
 
-const User = memo(({ userId, name, banned }: TUserProps) => {
+const User = memo(({ userId, name, banned, status }: TUserProps) => {
+  const roles = useUserRoles(userId);
+  const nameColor = getRoleNameColor(roles);
+  const isOffline = (status ?? UserStatus.OFFLINE) === UserStatus.OFFLINE;
+
   return (
     <UserPopover userId={userId}>
-      <div className="flex items-center gap-3 rounded px-2 py-1.5 hover:bg-accent select-none min-w-0">
+      <div className="flex min-w-0 cursor-pointer items-center gap-2 rounded-[4px] px-2 py-1 hover:bg-card">
         <UserAvatar userId={userId} className="h-8 w-8 shrink-0" />
         <span
           className={cn(
-            'text-sm text-foreground truncate',
-            banned && 'line-through text-muted-foreground'
+            'truncate text-sm',
+            banned && 'text-muted-foreground line-through',
+            isOffline && !banned && 'text-muted-foreground'
           )}
+          style={
+            !banned && !isOffline && nameColor
+              ? { color: nameColor }
+              : undefined
+          }
         >
           {name}
         </span>
@@ -45,20 +61,30 @@ type TRightSidebarProps = {
 const RightSidebar = memo(
   ({ className, isOpen = true }: TRightSidebarProps) => {
     const { t } = useTranslation('sidebar');
-    const users = useUsers();
+    const groups = useMemberListGroups();
+    const hiddenCount = useMemberListHiddenCount();
+    const usersCount =
+      groups.reduce((total, group) => total + group.users.length, 0) +
+      hiddenCount;
 
-    const { usersToShow, usersCount } = useMemo(() => {
-      const filtered = users.filter(
-        (user) => user.name !== DELETED_USER_IDENTITY_AND_NAME
-      );
+    const getGroupLabel = useCallback(
+      (group: (typeof groups)[number]) => {
+        if (group.labelKey === 'hoistedRole') {
+          return `${group.label} - ${group.users.length}`;
+        }
 
-      return {
-        usersToShow: filtered.slice(0, MAX_USERS_TO_SHOW),
-        usersCount: filtered.length
-      };
-    }, [users]);
+        if (group.labelKey === 'onlineGroup') {
+          return t('onlineGroup', { count: group.users.length });
+        }
 
-    const hasHiddenUsers = users.length > MAX_USERS_TO_SHOW;
+        if (group.labelKey === 'offlineGroup') {
+          return t('offlineGroup', { count: group.users.length });
+        }
+
+        return t('bannedGroup', { count: group.users.length });
+      },
+      [t]
+    );
 
     return (
       <ResizableSidebar
@@ -68,26 +94,37 @@ const RightSidebar = memo(
         defaultWidth={DEFAULT_WIDTH}
         edge="left"
         isOpen={isOpen}
-        className={cn('h-full', className)}
+        className={cn('h-full bg-sidebar', className)}
       >
         <div className="flex h-12 items-center border-b border-border px-4">
-          <h3 className="text-sm font-semibold text-foreground">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {t('membersHeader', { count: usersCount })}
           </h3>
         </div>
         <div className="flex-1 overflow-y-auto p-2">
-          <div className="space-y-1">
-            {usersToShow.map((user) => (
-              <User
-                key={user.id}
-                userId={user.id}
-                name={user.name}
-                banned={user.banned}
-              />
+          <div className="space-y-3">
+            {groups.map((group) => (
+              <div key={group.id} className="space-y-0.5">
+                <div
+                  className="truncate px-2 pt-1 text-[11px] font-bold uppercase tracking-wide text-faint"
+                  style={group.color ? { color: group.color } : undefined}
+                >
+                  {getGroupLabel(group)}
+                </div>
+                {group.users.map((user) => (
+                  <User
+                    key={user.id}
+                    userId={user.id}
+                    name={getRenderedUsername(user)}
+                    banned={user.banned}
+                    status={user.status}
+                  />
+                ))}
+              </div>
             ))}
-            {hasHiddenUsers && (
-              <div className="text-sm text-muted-foreground px-2 py-1.5">
-                +{users.length - MAX_USERS_TO_SHOW} more...
+            {hiddenCount > 0 && (
+              <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                {t('andMore', { count: hiddenCount })}
               </div>
             )}
           </div>

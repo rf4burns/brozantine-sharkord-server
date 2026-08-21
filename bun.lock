@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "sharkord",
+      "name": "kurier",
       "devDependencies": {
         "@types/bun": "1.3.14",
         "knip": "^5.80.0",
@@ -17,10 +17,10 @@
         "@dnd-kit/sortable": "^10.0.0",
         "@dnd-kit/utilities": "^3.2.2",
         "@floating-ui/dom": "^1.7.4",
+        "@kurier/shared": "workspace:*",
+        "@kurier/ui": "workspace:*",
         "@radix-ui/react-avatar": "^1.1.10",
         "@reduxjs/toolkit": "^2.9.0",
-        "@sharkord/shared": "workspace:*",
-        "@sharkord/ui": "workspace:*",
         "@tailwindcss/vite": "^4.1.13",
         "@tiptap/core": "3.22.2",
         "@tiptap/extension-emoji": "3.22.2",
@@ -78,11 +78,11 @@
       },
     },
     "apps/server": {
-      "name": "@sharkord/server",
+      "name": "@kurier/server",
       "version": "0.0.23",
       "dependencies": {
-        "@sharkord/plugin-sdk": "workspace:*",
-        "@sharkord/shared": "workspace:*",
+        "@kurier/plugin-sdk": "workspace:*",
+        "@kurier/shared": "workspace:*",
         "@trpc/server": "^11.6.0",
         "bun-sfe-autoupdater": "^0.0.4",
         "chalk": "^5.6.2",
@@ -104,6 +104,7 @@
         "ws": "^8.18.3",
         "yauzl": "^3.2.0",
         "yazl": "^3.3.1",
+        "youtubei.js": "^18.0.0",
         "zod": "^4.1.11",
       },
       "devDependencies": {
@@ -126,11 +127,11 @@
       },
     },
     "packages/e2e": {
-      "name": "@sharkord/e2e",
+      "name": "@kurier/e2e",
       "version": "0.0.23",
       "devDependencies": {
+        "@kurier/shared": "workspace:*",
         "@playwright/test": "^1.58.2",
-        "@sharkord/shared": "workspace:*",
         "@types/bun": "latest",
         "@types/react": "^19",
       },
@@ -144,10 +145,10 @@
       },
     },
     "packages/plugin-sdk": {
-      "name": "@sharkord/plugin-sdk",
+      "name": "@kurier/plugin-sdk",
       "version": "0.0.23",
       "devDependencies": {
-        "@sharkord/shared": "workspace:*",
+        "@kurier/shared": "workspace:*",
         "@types/bun": "latest",
         "@types/react": "^19.1.13",
         "@types/react-dom": "^19.1.9",
@@ -165,7 +166,7 @@
       },
     },
     "packages/scripts": {
-      "name": "@sharkord/scripts",
+      "name": "@kurier/scripts",
       "version": "0.0.23",
       "devDependencies": {
         "@types/bun": "latest",
@@ -181,7 +182,7 @@
       },
     },
     "packages/shared": {
-      "name": "@sharkord/shared",
+      "name": "@kurier/shared",
       "version": "0.0.23",
       "dependencies": {
         "drizzle-orm": "^0.44.6",
@@ -206,9 +207,10 @@
       },
     },
     "packages/ui": {
-      "name": "@sharkord/ui",
+      "name": "@kurier/ui",
       "version": "0.0.23",
       "dependencies": {
+        "@kurier/shared": "workspace:*",
         "@radix-ui/react-alert-dialog": "^1.1.15",
         "@radix-ui/react-avatar": "^1.1.10",
         "@radix-ui/react-context-menu": "^2.2.16",
@@ -223,7 +225,6 @@
         "@radix-ui/react-switch": "^1.2.6",
         "@radix-ui/react-tabs": "^1.1.13",
         "@radix-ui/react-tooltip": "^1.2.8",
-        "@sharkord/shared": "workspace:*",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "date-fns": "^4.1.0",
@@ -261,6 +262,8 @@
   },
   "packages": {
     "@babel/runtime": ["@babel/runtime@7.28.6", "", {}, "sha512-05WQkdpL9COIMz4LjTxGpPNCdlpyimKppYNoJ5Di5EUObifl8t4tuLuUBBZEpoLYOmfvIWrsp9fCl0HoPRVTdA=="],
+
+    "@bufbuild/protobuf": ["@bufbuild/protobuf@2.14.0", "", {}, "sha512-C3UGsiCwSprE2NKIIFA3hCDlpXTMCAXRZuEVp88L1GY36Y41+rYL5fryE+nOFhp4p4JPQvdV8PQ4DWgHgeTE+w=="],
 
     "@colors/colors": ["@colors/colors@1.6.0", "", {}, "sha512-Ir+AOibqzrIsL6ajt3Rz3LskB7OiMVHqltZmspbW/TJuTVuyOMirVqAkjfY6JISiLHgyNqicAC8AyHHGzNd/dA=="],
 
@@ -389,6 +392,18 @@
     "@jridgewell/sourcemap-codec": ["@jridgewell/sourcemap-codec@1.5.5", "", {}, "sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og=="],
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
+
+    "@kurier/e2e": ["@kurier/e2e@workspace:packages/e2e"],
+
+    "@kurier/plugin-sdk": ["@kurier/plugin-sdk@workspace:packages/plugin-sdk"],
+
+    "@kurier/scripts": ["@kurier/scripts@workspace:packages/scripts"],
+
+    "@kurier/server": ["@kurier/server@workspace:apps/server"],
+
+    "@kurier/shared": ["@kurier/shared@workspace:packages/shared"],
+
+    "@kurier/ui": ["@kurier/ui@workspace:packages/ui"],
 
     "@lukeed/csprng": ["@lukeed/csprng@1.1.0", "", {}, "sha512-Z7C/xXCiGWsg0KuKsHTKJxbWhpI3Vs5GwLfOean7MGyVFGqdRgBbAjOCh6u4bbjPc/8MJ2pZmK/0DLdCbivLDA=="],
 
@@ -593,18 +608,6 @@
     "@rollup/rollup-win32-x64-gnu": ["@rollup/rollup-win32-x64-gnu@4.59.0", "", { "os": "win32", "cpu": "x64" }, "sha512-laBkYlSS1n2L8fSo1thDNGrCTQMmxjYY5G0WFWjFFYZkKPjsMBsgJfGf4TLxXrF6RyhI60L8TMOjBMvXiTcxeA=="],
 
     "@rollup/rollup-win32-x64-msvc": ["@rollup/rollup-win32-x64-msvc@4.59.0", "", { "os": "win32", "cpu": "x64" }, "sha512-2HRCml6OztYXyJXAvdDXPKcawukWY2GpR5/nxKp4iBgiO3wcoEGkAaqctIbZcNB6KlUQBIqt8VYkNSj2397EfA=="],
-
-    "@sharkord/e2e": ["@sharkord/e2e@workspace:packages/e2e"],
-
-    "@sharkord/plugin-sdk": ["@sharkord/plugin-sdk@workspace:packages/plugin-sdk"],
-
-    "@sharkord/scripts": ["@sharkord/scripts@workspace:packages/scripts"],
-
-    "@sharkord/server": ["@sharkord/server@workspace:apps/server"],
-
-    "@sharkord/shared": ["@sharkord/shared@workspace:packages/shared"],
-
-    "@sharkord/ui": ["@sharkord/ui@workspace:packages/ui"],
 
     "@so-ric/colorspace": ["@so-ric/colorspace@1.1.6", "", { "dependencies": { "color": "^5.0.2", "text-hex": "1.0.x" } }, "sha512-/KiKkpHNOBgkFJwu9sh48LkHSMYGyuTcSFK/qMBdnOAlrRJzRSXAOFB5qwzaVQuDl8wAvHVMkaASQDReTahxuw=="],
 
@@ -1034,6 +1037,8 @@
 
     "fetch-blob": ["fetch-blob@3.2.0", "", { "dependencies": { "node-domexception": "^1.0.0", "web-streams-polyfill": "^3.0.3" } }, "sha512-7yAQpD2UMJzLi1Dqv7qFYnPbaPx7ZfFK6PiIxQ4PfkGPyNyl2Ugx+a/umUonmKqjhM4DnfbMvdX6otXq83soQQ=="],
 
+    "fflate": ["fflate@0.8.3", "", {}, "sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA=="],
+
     "file-entry-cache": ["file-entry-cache@6.0.1", "", { "dependencies": { "flat-cache": "^3.0.4" } }, "sha512-7Gps/XWymbLk2QLYK4NzpMOrYjMhdIxXuIvy2QBsLE6ljuodKvdkWs/cpyJJ3CVIVpH0Oi1Hvg1ovbMzLdFBBg=="],
 
     "filesize": ["filesize@11.0.13", "", {}, "sha512-mYJ/qXKvREuO0uH8LTQJ6v7GsUvVOguqxg2VTwQUkyTPXXRRWPdjuUPVqdBrJQhvci48OHlNGRnux+Slr2Rnvw=="],
@@ -1249,6 +1254,8 @@
     "mediasoup-client": ["mediasoup-client@3.18.7", "", { "dependencies": { "@types/debug": "^4.1.12", "@types/events-alias": "npm:@types/events@^3.0.3", "awaitqueue": "^3.3.0", "debug": "^4.4.3", "events-alias": "npm:events@^3.3.0", "fake-mediastreamtrack": "^2.2.1", "h264-profile-level-id": "^2.3.2", "sdp-transform": "^3.0.0", "supports-color": "^10.2.2" } }, "sha512-110f+zYEvSllYoF6didbIznIvSrTwMY9CqDhdWpq1M0goX1HWLoBdguiYB/MqcA858R2dOKDarP1R4vv5RAg1w=="],
 
     "merge2": ["merge2@1.4.1", "", {}, "sha512-8q7VEgMJW4J8tcfVPy8g09NcQwZdbwFEqhe/WZkoIzjn/3TGDwtOCYtXGxA3O8tPzpczCCDgv+P2P5y00ZJOOg=="],
+
+    "meriyah": ["meriyah@7.3.2", "", {}, "sha512-uFPXbsoxaEd7PafMz3K/n/Z3kXz7iZBJtYU0VQB/kcV7i33+JghLTKweabLir480FUsyLz6gUIj4LW7kCQ35TA=="],
 
     "micromatch": ["micromatch@4.0.8", "", { "dependencies": { "braces": "3.0.3", "picomatch": "2.3.1" } }, "sha512-PXwfBhYu0hBCPw8Dn0E+WDYb7af3dSLVWKi3HGv84IdF4TyFoC0ysxFd0Goxw7nSv4T/PzEJQxsYsEiFCKo2BA=="],
 
@@ -1575,6 +1582,8 @@
     "yocto-queue": ["yocto-queue@0.1.0", "", {}, "sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q=="],
 
     "youtube-video-element": ["youtube-video-element@1.9.0", "", { "dependencies": { "media-played-ranges-mixin": "^0.1.0" } }, "sha512-Hh0dbQM+FVlUaYUbpYkZNUvdKxTNcSNvTGzkQKYShltnX+LRHEp2eYvC2Zm43eU8Np+CBZuoNR2i+seCYzzAyg=="],
+
+    "youtubei.js": ["youtubei.js@18.0.0", "", { "dependencies": { "@bufbuild/protobuf": "^2.0.0", "fflate": "^0.8.2", "meriyah": "^7.3.1" } }, "sha512-7Tztl5QzNL4nIhiAxa4P/0C8cDDsUe0j4iaUeNiaA+ZfSe/l+HkHxXyoWlQXNW7IPi2n6AW23ysVMJLDh+AwWQ=="],
 
     "zod": ["zod@4.3.6", "", {}, "sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg=="],
 

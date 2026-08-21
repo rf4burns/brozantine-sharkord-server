@@ -1,3 +1,3 @@
-# Sharkord Plugin SDK
+# Kurier Plugin SDK
 
-For docs, see [docs](https://sharkord.com/docs/plugins/overview).
+Public API surface for Kurier plugins. See `packages/plugin-sdk/src` for commands, actions, and the plugin context.

@@ -1,4 +1,4 @@
-import { Button, Input } from '@sharkord/ui';
+import { Button, Input } from '@kurier/ui';
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { memo, useCallback, useMemo, useState } from 'react';
 

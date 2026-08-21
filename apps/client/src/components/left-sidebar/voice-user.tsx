@@ -1,20 +1,14 @@
+import { ElapsedTime } from '@/components/elapsed-time';
 import { UserAvatar } from '@/components/user-avatar';
 import { useStreamVolumeControl } from '@/components/voice-provider/hooks/use-stream-volume-control';
+import { VoiceStateIndicators } from '@/components/voice-state-icons/indicators';
 import { useCan } from '@/features/server/hooks';
 import type { TVoiceUser } from '@/features/server/types';
 import { useIsOwnUser } from '@/features/server/users/hooks';
 import { useSpeakingState } from '@/features/server/voice/hooks';
-import { Permission } from '@sharkord/shared';
-import { cn } from '@sharkord/ui';
-import {
-  HeadphoneOff,
-  Headphones,
-  Mic,
-  MicOff,
-  Monitor,
-  Video,
-  VolumeX
-} from 'lucide-react';
+import { Permission } from '@kurier/shared';
+import { cn } from '@kurier/ui';
+import { Monitor, Video, VolumeX } from 'lucide-react';
 import { memo, useCallback } from 'react';
 import { UserPopover } from '../user-popover';
 import { VOICE_USER_DND_MIME } from './helpers';
@@ -62,26 +56,17 @@ const VoiceUser = memo(({ user, isOwnChannel = false }: TVoiceUserProps) => {
         {user.name}
       </span>
 
+      <ElapsedTime
+        startedAt={user.joinedAt}
+        className="text-[10px] text-muted-foreground shrink-0"
+      />
+
       <div className="flex items-center gap-1 opacity-60">
         {shouldShowMuteIndicator && (
           <VolumeX className="h-3 w-3 text-red-500" />
         )}
 
-        <div>
-          {user.state.micMuted ? (
-            <MicOff className="h-3 w-3 text-red-500" />
-          ) : (
-            <Mic className="h-3 w-3 text-green-500" />
-          )}
-        </div>
-
-        <div>
-          {user.state.soundMuted ? (
-            <HeadphoneOff className="h-3 w-3 text-red-500" />
-          ) : (
-            <Headphones className="h-3 w-3 text-green-500" />
-          )}
-        </div>
+        <VoiceStateIndicators state={user.state} />
 
         {user.state.webcamEnabled && (
           <Video className="h-3 w-3 text-blue-500" />

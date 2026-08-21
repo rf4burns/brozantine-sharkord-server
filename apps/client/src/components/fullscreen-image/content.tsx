@@ -1,8 +1,10 @@
+import { copyImagePixels } from '@/helpers/copy-image-pixels';
 import { cn } from '@/lib/utils';
-import { IconButton } from '@sharkord/ui';
-import { Link, X } from 'lucide-react';
+import { IconButton } from '@kurier/ui';
+import { Copy, Link, X } from 'lucide-react';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
 const portalRoot = document.getElementById('imagePortal')!;
@@ -13,6 +15,7 @@ type TFullScreenImageProps = React.ImgHTMLAttributes<HTMLImageElement> & {
 
 const FullScreenImage = memo(
   ({ as: Component = 'img', ...props }: TFullScreenImageProps) => {
+    const { t } = useTranslation('common');
     const [open, setOpen] = useState(false);
     const [visible, setVisible] = useState(false);
 
@@ -134,14 +137,32 @@ const FullScreenImage = memo(
         if (!props.src) return;
 
         try {
-          navigator.clipboard.writeText(props.src);
-
-          toast.success('Image link copied to clipboard');
+          await navigator.clipboard.writeText(props.src as string);
+          toast.success(t('copiedImageLink'));
         } catch {
-          toast.error('Failed to copy image link');
+          toast.error(t('failedCopyImageLink'));
         }
       },
-      [props.src]
+      [props.src, t]
+    );
+
+    const onCopyImage = useCallback(
+      async (e: React.MouseEvent) => {
+        e.stopPropagation();
+
+        if (!props.src) return;
+
+        try {
+          const result = await copyImagePixels(props.src as string);
+
+          toast.success(
+            result === 'image' ? t('copiedImage') : t('copiedImageLink')
+          );
+        } catch {
+          toast.error(t('failedCopyImage'));
+        }
+      },
+      [props.src, t]
     );
 
     const portalContainer = open
@@ -170,7 +191,18 @@ const FullScreenImage = memo(
                 }
               />
               <div className="flex gap-2 absolute top-2 right-2 z-50">
-                <IconButton icon={Link} variant="ghost" onClick={onCopyLink} />
+                <IconButton
+                  icon={Copy}
+                  variant="ghost"
+                  onClick={onCopyImage}
+                  title={t('copyImage')}
+                />
+                <IconButton
+                  icon={Link}
+                  variant="ghost"
+                  onClick={onCopyLink}
+                  title={t('copyImageLink')}
+                />
                 <IconButton onClick={onCloseClick} icon={X} variant="ghost" />
               </div>
             </div>

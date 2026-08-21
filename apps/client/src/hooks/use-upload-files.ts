@@ -1,7 +1,7 @@
 import { useChannelById } from '@/features/server/channels/hooks';
 import { useCan, usePublicServerSettings } from '@/features/server/hooks';
 import { uploadFile, type TUploadProgress } from '@/helpers/upload-file';
-import { isPreviewable, Permission, type TTempFile } from '@sharkord/shared';
+import { isPreviewable, Permission, type TTempFile } from '@kurier/shared';
 import {
   useCallback,
   useEffect,
@@ -25,7 +25,8 @@ type TDisplayItem = {
 const useUploadFiles = (
   channelId: number,
   containerRef: RefObject<HTMLElement | null>,
-  disabled: boolean = false
+  disabled: boolean = false,
+  onPasteImages?: (files: File[]) => Promise<void>
 ) => {
   const [files, setFiles] = useState<TTempFile[]>([]);
   const filesRef = useRef<TTempFile[]>([]);
@@ -161,10 +162,11 @@ const useUploadFiles = (
   }, [checkUploadPermissions]);
 
   const processFiles = useCallback(
-    async (filesToUpload: File[]) => {
+    async (filesToUpload: File[], options?: { silent?: boolean }) => {
+      const silent = options?.silent ?? false;
       const allowed = takeAllowedFiles(filesToUpload);
 
-      if (!allowed.length) return;
+      if (!allowed.length) return [];
 
       const maxFileSize =
         settings?.storageUploadMaxFileSize ?? Number.MAX_SAFE_INTEGER;
@@ -178,10 +180,12 @@ const useUploadFiles = (
         }
       }
 
-      if (!withinLimit.length) return;
+      if (!withinLimit.length) return [];
 
-      setUploading(true);
-      setUploadSpeed(0);
+      if (!silent) {
+        setUploading(true);
+        setUploadSpeed(0);
+      }
 
       speedSampleRef.current = { time: Date.now(), loaded: 0 };
       loadedPerFileRef.current = {};
@@ -189,7 +193,9 @@ const useUploadFiles = (
 
       const total = withinLimit.reduce((acc, file) => acc + file.size, 0);
 
-      setUploadingSize((size) => size + total);
+      if (!silent) {
+        setUploadingSize((size) => size + total);
+      }
 
       // create pending entries with preview URLs for each file
       const pendingEntries: TDisplayItem[] = withinLimit.map((file, i) => {
@@ -201,26 +207,34 @@ const useUploadFiles = (
           name: file.name,
           size: file.size,
           extension: ext,
-          previewUrl: isPreviewable(file)
-            ? URL.createObjectURL(file)
-            : undefined,
+          previewUrl:
+            !silent && isPreviewable(file)
+              ? URL.createObjectURL(file)
+              : undefined,
           progress: 0
         };
       });
 
-      setPendingUploads((prev) => [...prev, ...pendingEntries]);
-      setDisplayOrder((prev) => [...prev, ...pendingEntries.map((p) => p.id)]);
+      if (!silent) {
+        setPendingUploads((prev) => [...prev, ...pendingEntries]);
+        setDisplayOrder((prev) => [
+          ...prev,
+          ...pendingEntries.map((p) => p.id)
+        ]);
+      }
 
       // upload all files in parallel
       const uploadPromises = withinLimit.map(async (file, i) => {
         const pendingId = pendingEntries[i].id;
 
         const onProgress = (progress: TUploadProgress) => {
-          setPendingUploads((prev) =>
-            prev.map((p) =>
-              p.id === pendingId ? { ...p, progress: progress.percent } : p
-            )
-          );
+          if (!silent) {
+            setPendingUploads((prev) =>
+              prev.map((p) =>
+                p.id === pendingId ? { ...p, progress: progress.percent } : p
+              )
+            );
+          }
 
           const prevLoaded = loadedPerFileRef.current[pendingId] ?? 0;
 
@@ -235,7 +249,9 @@ const useUploadFiles = (
             const bytesPerSec =
               ((totalLoadedRef.current - sample.loaded) / elapsed) * 1000;
 
-            setUploadSpeed(bytesPerSec);
+            if (!silent) {
+              setUploadSpeed(bytesPerSec);
+            }
 
             speedSampleRef.current = {
               time: now,
@@ -246,8 +262,9 @@ const useUploadFiles = (
 
         const result = await uploadFile(file, { onProgress });
 
-        // remove this pending entry and immediately add completed file
-        setPendingUploads((prev) => prev.filter((p) => p.id !== pendingId));
+        if (!silent) {
+          setPendingUploads((prev) => prev.filter((p) => p.id !== pendingId));
+        }
 
         if (!result) {
           const previewUrl = pendingEntries[i].previewUrl;
@@ -256,37 +273,48 @@ const useUploadFiles = (
             URL.revokeObjectURL(previewUrl);
           }
 
-          // remove from display order on failure
-          setDisplayOrder((prev) => prev.filter((id) => id !== pendingId));
+          if (!silent) {
+            setDisplayOrder((prev) => prev.filter((id) => id !== pendingId));
+          }
 
           return;
         }
 
-        // transfer preview URL to the completed file
+        if (silent) {
+          return result;
+        }
+
         const previewUrl = pendingEntries[i].previewUrl;
 
         if (previewUrl) {
           setPreviewUrls((prev) => ({ ...prev, [result.id]: previewUrl }));
         }
 
-        // swap pendingId with real fileId in display order
         pendingToFileRef.current[pendingId] = result.id;
 
         setDisplayOrder((prev) =>
           prev.map((id) => (id === pendingId ? result.id : id))
         );
 
-        // add to files immediately so it appears right away
         setFiles((prev) => [...prev, result]);
+
+        return result;
       });
 
-      await Promise.all(uploadPromises);
+      const uploaded = (await Promise.all(uploadPromises)).filter(
+        (file): file is TTempFile => !!file
+      );
 
-      setUploading(false);
-      setUploadingSize((size) => size - total);
-      setUploadSpeed(0);
+      if (!silent) {
+        setUploading(false);
+        setUploadingSize((size) => size - total);
+        setUploadSpeed(0);
+      }
+
       loadedPerFileRef.current = {};
       totalLoadedRef.current = 0;
+
+      return uploaded;
     },
     [takeAllowedFiles, settings?.storageUploadMaxFileSize]
   );
@@ -323,6 +351,26 @@ const useUploadFiles = (
         if (!pastedFile) continue;
 
         filesToUpload.push(pastedFile);
+      }
+
+      const imageFiles = filesToUpload.filter((file) =>
+        file.type.startsWith('image/')
+      );
+
+      if (onPasteImages && imageFiles.length > 0) {
+        event.preventDefault();
+        event.stopPropagation();
+        await onPasteImages(imageFiles);
+
+        const otherFiles = filesToUpload.filter(
+          (file) => !file.type.startsWith('image/')
+        );
+
+        if (otherFiles.length) {
+          await processFiles(otherFiles);
+        }
+
+        return;
       }
 
       await processFiles(filesToUpload);
@@ -362,12 +410,12 @@ const useUploadFiles = (
       event.preventDefault();
     };
 
-    container.addEventListener('paste', handlePaste);
+    container.addEventListener('paste', handlePaste, true);
     container.addEventListener('dragover', handleDragOver);
     container.addEventListener('drop', handleDrop);
 
     return () => {
-      container.removeEventListener('paste', handlePaste);
+      container.removeEventListener('paste', handlePaste, true);
       container.removeEventListener('dragover', handleDragOver);
       container.removeEventListener('drop', handleDrop);
     };
@@ -376,7 +424,8 @@ const useUploadFiles = (
     settings?.storageUploadEnabled,
     disabled,
     containerRef,
-    processFiles
+    processFiles,
+    onPasteImages
   ]);
 
   const fileInputProps = useMemo(
@@ -449,7 +498,8 @@ const useUploadFiles = (
       uploadingSize,
       uploadSpeed,
       openFileDialog,
-      fileInputProps
+      fileInputProps,
+      processFiles
     }),
     [
       files,
@@ -460,7 +510,8 @@ const useUploadFiles = (
       uploadingSize,
       uploadSpeed,
       openFileDialog,
-      fileInputProps
+      fileInputProps,
+      processFiles
     ]
   );
 };

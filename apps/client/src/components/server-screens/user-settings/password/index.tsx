@@ -10,7 +10,7 @@ import {
   CardTitle,
   Group,
   Input
-} from '@sharkord/ui';
+} from '@kurier/ui';
 import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';

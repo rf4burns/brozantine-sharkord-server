@@ -4,8 +4,8 @@ import {
   type TMessage,
   isEmptyMessage,
   prepareMessageHtml
-} from '@sharkord/shared';
-import { AutoFocus } from '@sharkord/ui';
+} from '@kurier/shared';
+import { AutoFocus } from '@kurier/ui';
 import { memo, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -58,7 +58,9 @@ const MessageEditInline = memo(
             onCancel={onBlur}
           />
         </AutoFocus>
-        <span className="text-xs text-primary/60">{t('pressEnterToSave')}</span>
+        <span className="text-xs text-muted-foreground">
+          {t('pressEnterToSave')}
+        </span>
       </div>
     );
   }

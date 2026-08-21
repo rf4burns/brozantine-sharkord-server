@@ -97,6 +97,10 @@ type TPublicUser = Pick<
   TJoinedUser,
   | 'id'
   | 'name'
+  | 'nickname'
+  | 'pronouns'
+  | 'statusMessage'
+  | 'preferences'
   | 'profileColor'
   | 'bio'
   | 'avatar'
@@ -104,6 +108,7 @@ type TPublicUser = Pick<
   | 'banner'
   | 'bannerId'
   | 'banned'
+  | 'deleted'
   | 'createdAt'
 > & {
   status?: UserStatus;

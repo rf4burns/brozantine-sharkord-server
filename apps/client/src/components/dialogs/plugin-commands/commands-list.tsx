@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import type { TCommandInfo } from '@sharkord/shared';
+import type { TCommandInfo } from '@kurier/shared';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 

@@ -7,7 +7,7 @@ import {
   ServerEvents,
   UserStatus,
   type TConnectionParams
-} from '@sharkord/shared';
+} from '@kurier/shared';
 import { TRPCError } from '@trpc/server';
 import {
   applyWSSHandler,
@@ -22,7 +22,9 @@ import { isUserDmParticipant } from '../db/queries/dms';
 import { getUserById, getUserByToken } from '../db/queries/users';
 import { channels } from '../db/schema';
 import { getWsInfo } from '../helpers/get-ws-info';
+import { getUserLeftReason } from '../helpers/user-left-reason';
 import { logger } from '../logger';
+import { eventBus } from '../plugins/event-bus';
 import { enqueueActivityLog } from '../queues/activity-log';
 import { appRouter } from '../routers';
 import { getUserRoles } from '../routers/users/get-user-roles';
@@ -66,21 +68,24 @@ const createContext = async ({
     message: 'Invalid authentication token'
   });
 
+  invariant(!decodedUser.deleted, {
+    code: 'FORBIDDEN',
+    message: 'This account has been deleted'
+  });
+
   invariant(!decodedUser.banned, {
     code: 'FORBIDDEN',
     message: 'User is banned'
   });
 
-  const hasPermission = async (targetPermission: Permission | Permission[]) => {
+  const getPermissionSet = async (): Promise<Set<Permission> | 'all'> => {
     const user = await getUserById(decodedUser.id);
 
-    if (!user) return false;
+    if (!user) return new Set();
 
     const roles = await getUserRoles(user.id);
 
-    const hasOwnerRole = roles.some((r) => r.id === OWNER_ROLE_ID);
-
-    if (hasOwnerRole) return true; // owner always has all permissions
+    if (roles.some((r) => r.id === OWNER_ROLE_ID)) return 'all';
 
     const permissionsSet = new Set<Permission>();
 
@@ -90,11 +95,27 @@ const createContext = async ({
       }
     }
 
+    return permissionsSet;
+  };
+
+  const hasPermission = async (targetPermission: Permission | Permission[]) => {
+    const permissionsSet = await getPermissionSet();
+
+    if (permissionsSet === 'all') return true;
+
     if (Array.isArray(targetPermission)) {
       return targetPermission.every((p) => permissionsSet.has(p));
     }
 
     return permissionsSet.has(targetPermission);
+  };
+
+  const hasAnyPermission = async (permissions: Permission[]) => {
+    const permissionsSet = await getPermissionSet();
+
+    if (permissionsSet === 'all') return true;
+
+    return permissions.some((p) => permissionsSet.has(p));
   };
 
   const hasChannelPermission = async (
@@ -195,6 +216,13 @@ const createContext = async ({
     });
   };
 
+  const needsAnyPermission = async (permissions: Permission[]) => {
+    invariant(await hasAnyPermission(permissions), {
+      code: 'FORBIDDEN',
+      message: 'Insufficient permissions'
+    });
+  };
+
   const needsChannelPermission = async (
     channelId: number,
     targetPermission: ChannelPermission
@@ -233,6 +261,8 @@ const createContext = async ({
     currentVoiceChannelId: undefined,
     hasPermission,
     needsPermission,
+    hasAnyPermission,
+    needsAnyPermission,
     hasChannelPermission,
     needsChannelPermission,
     getOwnWs,
@@ -268,7 +298,7 @@ const createWsServer = async (server: http.Server) => {
           }
         });
 
-        ws.on('close', async () => {
+        ws.on('close', async (code) => {
           try {
             const userId = ws.userId;
 
@@ -306,6 +336,12 @@ const createWsServer = async (server: http.Server) => {
 
             usersIpMap.delete(user.id);
             pubsub.publish(ServerEvents.USER_LEAVE, user.id);
+
+            eventBus.emit('user:left', {
+              userId: user.id,
+              username: user.name,
+              reason: getUserLeftReason(code)
+            });
 
             logger.info('%s left the server', user.name);
 

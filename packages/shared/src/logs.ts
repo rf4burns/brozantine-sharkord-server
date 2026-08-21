@@ -14,6 +14,13 @@ export enum ActivityLogType {
   USER_UNBANNED = 'USER_UNBANNED',
   USER_DELETED = 'USER_DELETED',
   USER_UPDATED_PASSWORD = 'USER_UPDATED_PASSWORD',
+  USER_ROLE_ADDED = 'USER_ROLE_ADDED',
+  USER_ROLE_REMOVED = 'USER_ROLE_REMOVED',
+  USER_MUTED = 'USER_MUTED',
+  USER_UNMUTED = 'USER_UNMUTED',
+  USER_DEAFENED = 'USER_DEAFENED',
+  USER_UNDEAFENED = 'USER_UNDEAFENED',
+  USER_NICKNAME_UPDATED = 'USER_NICKNAME_UPDATED',
   // -------------------- ROLES --------------------
   CREATED_ROLE = 'CREATED_ROLE',
   DELETED_ROLE = 'DELETED_ROLE',
@@ -42,7 +49,9 @@ export enum ActivityLogType {
   EXECUTED_PLUGIN_ACTION = 'EXECUTED_PLUGIN_ACTION',
   PLUGIN_TOGGLED = 'PLUGIN_TOGGLED',
   // -------------------- MESSAGES --------------------
-  TOGGLED_MESSAGE_PIN = 'TOGGLED_MESSAGE_PIN'
+  TOGGLED_MESSAGE_PIN = 'TOGGLED_MESSAGE_PIN',
+  MESSAGE_DELETED = 'MESSAGE_DELETED',
+  MESSAGE_EDITED = 'MESSAGE_EDITED'
 }
 
 export type TActivityLogDetailsMap = {
@@ -67,6 +76,42 @@ export type TActivityLogDetailsMap = {
   [ActivityLogType.USER_DELETED]: {
     reason: string | undefined;
     deletedBy: number;
+    targetUserId: number;
+    targetUsername: string;
+    wipe: boolean;
+  };
+  [ActivityLogType.USER_ROLE_ADDED]: {
+    targetUserId: number;
+    roleId: number;
+    roleName: string;
+    assignedBy: number;
+  };
+  [ActivityLogType.USER_ROLE_REMOVED]: {
+    targetUserId: number;
+    roleId: number;
+    roleName: string;
+    removedBy: number;
+  };
+  [ActivityLogType.USER_MUTED]: {
+    targetUserId: number;
+    mutedBy: number;
+  };
+  [ActivityLogType.USER_UNMUTED]: {
+    targetUserId: number;
+    unmutedBy: number;
+  };
+  [ActivityLogType.USER_DEAFENED]: {
+    targetUserId: number;
+    deafenedBy: number;
+  };
+  [ActivityLogType.USER_UNDEAFENED]: {
+    targetUserId: number;
+    undeafenedBy: number;
+  };
+  [ActivityLogType.USER_NICKNAME_UPDATED]: {
+    targetUserId: number;
+    updatedBy: number;
+    nickname: string | null;
   };
   [ActivityLogType.USER_CREATED]: {
     inviteCode: string | undefined;
@@ -185,6 +230,19 @@ export type TActivityLogDetailsMap = {
     channelId: number;
     pinned: boolean;
     pinnedBy: number;
+  };
+  [ActivityLogType.MESSAGE_DELETED]: {
+    messageId: number;
+    channelId: number;
+    authorId: number | null;
+    deletedBy: number;
+    contentPreview: string | undefined;
+  };
+  [ActivityLogType.MESSAGE_EDITED]: {
+    messageId: number;
+    channelId: number;
+    authorId: number | null;
+    editedBy: number;
   };
 };
 

@@ -4,7 +4,7 @@ import { SoundType } from '@/features/server/types';
 import { updateOwnVoiceState } from '@/features/server/voice/actions';
 import { useOwnVoiceState } from '@/features/server/voice/hooks';
 import { getTRPCClient } from '@/lib/trpc';
-import { getTrpcError } from '@sharkord/shared';
+import { getTrpcError } from '@kurier/shared';
 import { useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 
@@ -54,6 +54,10 @@ const useVoiceControls = ({
     if (isTogglingMic.current) return;
     const nextMicMuted = !ownVoiceState.micMuted;
 
+    if (ownVoiceState.serverMuted || ownVoiceState.serverDeafened) {
+      return;
+    }
+
     if (ownVoiceState.soundMuted && !nextMicMuted) {
       return;
     }
@@ -99,6 +103,8 @@ const useVoiceControls = ({
   }, [
     ownVoiceState.micMuted,
     ownVoiceState.soundMuted,
+    ownVoiceState.serverMuted,
+    ownVoiceState.serverDeafened,
     startMicStream,
     currentVoiceChannelId,
     localAudioStream
@@ -106,11 +112,18 @@ const useVoiceControls = ({
 
   const toggleSound = useCallback(async () => {
     if (isTogglingSound.current) return;
-    isTogglingSound.current = true;
 
     const nextSoundMuted = !ownVoiceState.soundMuted;
+
+    if (ownVoiceState.serverDeafened && !nextSoundMuted) {
+      return;
+    }
+
+    isTogglingSound.current = true;
+
     const trpc = getTRPCClient();
     const previousPendingMicRestoreState = pendingMicRestoreStateRef.current;
+
     const nextVoiceState: TVoiceStateUpdate = {
       soundMuted: nextSoundMuted
     };
@@ -172,6 +185,7 @@ const useVoiceControls = ({
   }, [
     ownVoiceState.soundMuted,
     ownVoiceState.micMuted,
+    ownVoiceState.serverDeafened,
     currentVoiceChannelId,
     localAudioStream,
     startMicStream

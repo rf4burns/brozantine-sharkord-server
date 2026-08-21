@@ -1,4 +1,5 @@
 import { t } from '../utils/trpc';
+import { activityLogRouter } from './activity-log';
 import { categoriesRouter } from './categories';
 import { channelsRouter } from './channels';
 import { dmsRouter } from './dms';
@@ -22,6 +23,7 @@ const appRouter = t.router({
   emojis: emojisRouter,
   roles: rolesRouter,
   invites: invitesRouter,
+  activityLog: activityLogRouter,
   voice: voiceRouter,
   categories: categoriesRouter,
   plugins: pluginsRouter

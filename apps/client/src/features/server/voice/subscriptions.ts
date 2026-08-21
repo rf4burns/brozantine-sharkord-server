@@ -13,9 +13,15 @@ const subscribeToVoice = () => {
   const trpc = getTRPCClient();
 
   const onUserJoinVoiceSub = trpc.voice.onJoin.subscribe(undefined, {
-    onData: ({ channelId, userId, state }) => {
-      logDebug('[EVENTS] voice.onJoin', { channelId, userId, state });
-      addUserToVoiceChannel(userId, channelId, state);
+    onData: ({ channelId, userId, state, joinedAt, occupiedSince }) => {
+      logDebug('[EVENTS] voice.onJoin', {
+        channelId,
+        userId,
+        state,
+        joinedAt,
+        occupiedSince
+      });
+      addUserToVoiceChannel(userId, channelId, state, joinedAt, occupiedSince);
     },
     onError: (err) => console.error('onUserJoinVoice subscription error:', err)
   });

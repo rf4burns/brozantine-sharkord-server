@@ -1,9 +1,10 @@
-import { ActivityLogType, DisconnectCode, Permission } from '@sharkord/shared';
+import { ActivityLogType, DisconnectCode, Permission } from '@kurier/shared';
 import { eq } from 'drizzle-orm';
 import z from 'zod';
 import { db } from '../../db';
 import { publishUser } from '../../db/publishers';
 import { users } from '../../db/schema';
+import { assertCanModerateUser } from '../../helpers/role-hierarchy';
 import { enqueueActivityLog } from '../../queues/activity-log';
 import { invariant } from '../../utils/invariant';
 import { protectedProcedure } from '../../utils/trpc';
@@ -16,12 +17,14 @@ const banRoute = protectedProcedure
     })
   )
   .mutation(async ({ ctx, input }) => {
-    await ctx.needsPermission(Permission.MANAGE_USERS);
+    await ctx.needsPermission(Permission.BAN_MEMBERS);
 
     invariant(input.userId !== ctx.user.id, {
       code: 'BAD_REQUEST',
       message: 'You cannot ban yourself.'
     });
+
+    await assertCanModerateUser(ctx.userId, input.userId);
 
     const userWs = ctx.getUserWs(input.userId);
 

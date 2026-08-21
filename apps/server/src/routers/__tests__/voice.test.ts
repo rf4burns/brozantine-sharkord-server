@@ -1,4 +1,4 @@
-import { ChannelPermission, Permission } from '@sharkord/shared';
+import { ChannelPermission, Permission, StreamKind } from '@kurier/shared';
 import { describe, expect, test } from 'bun:test';
 import { and, eq } from 'drizzle-orm';
 import { initTest } from '../../__tests__/helpers';
@@ -6,7 +6,8 @@ import { tdb } from '../../__tests__/setup';
 import {
   channelRolePermissions,
   rolePermissions,
-  roles
+  roles,
+  userRoles
 } from '../../db/schema';
 import { VoiceRuntime } from '../../runtimes/voice';
 
@@ -69,22 +70,18 @@ describe('voice router', () => {
     });
 
     test('should reject when the caller cannot join the destination channel', async () => {
+      await tdb.insert(rolePermissions).values({
+        roleId: 3,
+        permission: Permission.MOVE_MEMBERS,
+        createdAt: Date.now()
+      });
+      await tdb.insert(userRoles).values({
+        userId: 2,
+        roleId: 3,
+        createdAt: Date.now()
+      });
+
       const { caller } = await initTest(2);
-
-      const defaultRole = await tdb
-        .select({ id: roles.id })
-        .from(roles)
-        .where(eq(roles.isDefault, true))
-        .get();
-
-      await tdb
-        .insert(rolePermissions)
-        .values({
-          roleId: defaultRole!.id,
-          permission: Permission.MOVE_MEMBERS,
-          createdAt: Date.now()
-        })
-        .execute();
 
       await expect(
         caller.voice.moveUser({
@@ -95,6 +92,17 @@ describe('voice router', () => {
     });
 
     test('should reject when the caller can join but not view the private destination', async () => {
+      await tdb.insert(rolePermissions).values({
+        roleId: 3,
+        permission: Permission.MOVE_MEMBERS,
+        createdAt: Date.now()
+      });
+      await tdb.insert(userRoles).values({
+        userId: 2,
+        roleId: 3,
+        createdAt: Date.now()
+      });
+
       const { caller } = await initTest(2);
 
       const defaultRole = await tdb
@@ -102,15 +110,6 @@ describe('voice router', () => {
         .from(roles)
         .where(eq(roles.isDefault, true))
         .get();
-
-      await tdb
-        .insert(rolePermissions)
-        .values({
-          roleId: defaultRole!.id,
-          permission: Permission.MOVE_MEMBERS,
-          createdAt: Date.now()
-        })
-        .execute();
 
       await tdb
         .insert(channelRolePermissions)
@@ -238,6 +237,313 @@ describe('voice router', () => {
         ).rejects.toThrow('User is not in a voice channel');
       } finally {
         await dmRuntime.destroy();
+      }
+    });
+  });
+
+  describe('restartIce', () => {
+    test('should reject when the user is not in a voice channel', async () => {
+      const { caller } = await initTest(1);
+
+      await expect(
+        caller.voice.restartIce({ direction: 'send' })
+      ).rejects.toThrow('User is not in a voice channel');
+    });
+
+    test('should reject when the transport does not exist', async () => {
+      const { caller } = await initTest(1);
+      const runtime = new VoiceRuntime(2);
+
+      await runtime.init();
+
+      try {
+        await caller.voice.join({
+          channelId: 2,
+          state: {
+            micMuted: false,
+            soundMuted: false
+          }
+        });
+
+        await expect(
+          caller.voice.restartIce({ direction: 'send' })
+        ).rejects.toThrow('Transport not found');
+      } finally {
+        await runtime.destroy();
+      }
+    });
+
+    test('should return new ice parameters for send and recv transports', async () => {
+      const { caller } = await initTest(1);
+      const runtime = new VoiceRuntime(2);
+
+      await runtime.init();
+
+      try {
+        await caller.voice.join({
+          channelId: 2,
+          state: {
+            micMuted: false,
+            soundMuted: false
+          }
+        });
+
+        await caller.voice.createProducerTransport();
+        await caller.voice.createConsumerTransport();
+
+        const sendIce = await caller.voice.restartIce({ direction: 'send' });
+        const recvIce = await caller.voice.restartIce({ direction: 'recv' });
+
+        expect(sendIce.usernameFragment).toBeTruthy();
+        expect(sendIce.password).toBeTruthy();
+        expect(recvIce.usernameFragment).toBeTruthy();
+        expect(recvIce.password).toBeTruthy();
+      } finally {
+        await runtime.destroy();
+      }
+    });
+  });
+
+  test('should overlay server mute flags when joining voice', async () => {
+    const { caller: owner } = await initTest(1);
+    const { caller } = await initTest(2);
+    const runtime = new VoiceRuntime(2);
+
+    await runtime.init();
+    await owner.users.mute({
+      userId: 2,
+      muted: true
+    });
+
+    try {
+      await caller.voice.join({
+        channelId: 2,
+        state: {
+          micMuted: false,
+          soundMuted: false
+        }
+      });
+
+      const state = runtime.getUserState(2);
+
+      expect(state.serverMuted).toBe(true);
+      expect(state.micMuted).toBe(true);
+
+      await caller.voice.updateState({
+        micMuted: false
+      });
+
+      expect(runtime.getUserState(2).micMuted).toBe(true);
+
+      await expect(
+        caller.voice.produce({
+          transportId: 'missing',
+          kind: StreamKind.AUDIO,
+          rtpParameters: {}
+        })
+      ).rejects.toThrow('You cannot speak while server muted or deafened.');
+    } finally {
+      await runtime.destroy();
+    }
+  });
+
+  test('should reject webcam produce without ENABLE_WEBCAM', async () => {
+    const { caller } = await initTest(2);
+    const runtime = new VoiceRuntime(2);
+
+    await tdb
+      .delete(rolePermissions)
+      .where(
+        and(
+          eq(rolePermissions.roleId, 2),
+          eq(rolePermissions.permission, Permission.ENABLE_WEBCAM)
+        )
+      )
+      .execute();
+
+    await runtime.init();
+
+    try {
+      await caller.voice.join({
+        channelId: 2,
+        state: {
+          micMuted: false,
+          soundMuted: false
+        }
+      });
+
+      await expect(
+        caller.voice.produce({
+          transportId: 'missing',
+          kind: StreamKind.VIDEO,
+          rtpParameters: {}
+        })
+      ).rejects.toThrow('Insufficient permissions');
+    } finally {
+      await runtime.destroy();
+    }
+  });
+
+  test('should reject screen produce without SHARE_SCREEN', async () => {
+    const { caller } = await initTest(2);
+    const runtime = new VoiceRuntime(2);
+
+    await tdb
+      .delete(rolePermissions)
+      .where(
+        and(
+          eq(rolePermissions.roleId, 2),
+          eq(rolePermissions.permission, Permission.SHARE_SCREEN)
+        )
+      )
+      .execute();
+
+    await runtime.init();
+
+    try {
+      await caller.voice.join({
+        channelId: 2,
+        state: {
+          micMuted: false,
+          soundMuted: false
+        }
+      });
+
+      await expect(
+        caller.voice.produce({
+          transportId: 'missing',
+          kind: StreamKind.SCREEN,
+          rtpParameters: {}
+        })
+      ).rejects.toThrow('Insufficient permissions');
+    } finally {
+      await runtime.destroy();
+    }
+  });
+
+  test('should drop webcam and screen flags in updateState without global perms', async () => {
+    const { caller } = await initTest(2);
+    const runtime = new VoiceRuntime(2);
+
+    await tdb
+      .delete(rolePermissions)
+      .where(
+        and(
+          eq(rolePermissions.roleId, 2),
+          eq(rolePermissions.permission, Permission.ENABLE_WEBCAM)
+        )
+      )
+      .execute();
+
+    await tdb
+      .delete(rolePermissions)
+      .where(
+        and(
+          eq(rolePermissions.roleId, 2),
+          eq(rolePermissions.permission, Permission.SHARE_SCREEN)
+        )
+      )
+      .execute();
+
+    await runtime.init();
+
+    try {
+      await caller.voice.join({
+        channelId: 2,
+        state: {
+          micMuted: false,
+          soundMuted: false
+        }
+      });
+
+      await caller.voice.updateState({
+        webcamEnabled: true,
+        sharingScreen: true
+      });
+
+      const state = runtime.getUserState(2);
+
+      expect(state.webcamEnabled).toBe(false);
+      expect(state.sharingScreen).toBe(false);
+    } finally {
+      await runtime.destroy();
+    }
+  });
+
+  describe('occupancy timers', () => {
+    const joinInput = {
+      channelId: 2,
+      state: {
+        micMuted: false,
+        soundMuted: false
+      }
+    };
+
+    test('should start occupancy and member timers on first join and reset on last leave', async () => {
+      const { caller: first } = await initTest(1);
+      const { caller: second } = await initTest(2);
+      const runtime = new VoiceRuntime(2);
+
+      await runtime.init();
+
+      try {
+        await first.voice.join(joinInput);
+
+        const afterFirstJoin = VoiceRuntime.getVoiceMap()[2];
+        const occupiedSince = afterFirstJoin?.occupiedSince;
+
+        expect(occupiedSince).toBeDefined();
+        expect(occupiedSince).not.toBeNull();
+
+        if (occupiedSince == null) {
+          throw new Error('occupancy timer did not start');
+        }
+
+        expect(afterFirstJoin?.users[1]?.joinedAt).toBe(occupiedSince);
+
+        await second.voice.join(joinInput);
+
+        const afterSecondJoin = VoiceRuntime.getVoiceMap()[2];
+
+        expect(afterSecondJoin?.occupiedSince).toBe(occupiedSince);
+        expect(afterSecondJoin?.users[1]?.joinedAt).toBe(occupiedSince);
+        expect(typeof afterSecondJoin?.users[2]?.joinedAt).toBe('number');
+        expect(afterSecondJoin?.users[2]?.joinedAt).toBeGreaterThanOrEqual(
+          occupiedSince
+        );
+
+        await second.voice.leave();
+
+        const afterSecondLeave = VoiceRuntime.getVoiceMap()[2];
+
+        expect(afterSecondLeave?.occupiedSince).toBe(occupiedSince);
+        expect(afterSecondLeave?.users[1]?.joinedAt).toBe(occupiedSince);
+        expect(afterSecondLeave?.users[2]).toBeUndefined();
+
+        await first.voice.leave();
+
+        const afterLastLeave = VoiceRuntime.getVoiceMap()[2];
+
+        expect(afterLastLeave?.occupiedSince).toBeNull();
+        expect(afterLastLeave?.users[1]).toBeUndefined();
+
+        await Bun.sleep(5);
+        await first.voice.join(joinInput);
+
+        const afterRejoin = VoiceRuntime.getVoiceMap()[2];
+        const rejoinedAt = afterRejoin?.occupiedSince;
+
+        expect(rejoinedAt).toBeDefined();
+        expect(rejoinedAt).not.toBeNull();
+
+        if (rejoinedAt == null) {
+          throw new Error('occupancy timer did not restart');
+        }
+
+        expect(rejoinedAt).toBeGreaterThan(occupiedSince);
+        expect(afterRejoin?.users[1]?.joinedAt).toBe(rejoinedAt);
+      } finally {
+        await runtime.destroy();
       }
     });
   });

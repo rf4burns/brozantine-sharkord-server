@@ -7,8 +7,8 @@ import {
   getTrpcError,
   type TFile,
   type TJoinedMessageReaction
-} from '@sharkord/shared';
-import { Button, Tooltip } from '@sharkord/ui';
+} from '@kurier/shared';
+import { Button, Tooltip } from '@kurier/ui';
 import { gitHubEmojis } from '@tiptap/extension-emoji';
 import { memo, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';

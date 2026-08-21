@@ -10,20 +10,20 @@ declare global {
     DEBUG?: boolean;
 
     // plugin store exposed for plugins to use imperatively
-    __SHARKORD_STORE__: import('@sharkord/shared').TPluginStore;
+    __KURIER_STORE__: import('@kurier/shared').TPluginStore;
 
     // libs exposed for plugins to use
-    __SHARKORD_EXPOSED_LIBS__: {
+    __KURIER_EXPOSED_LIBS__: {
       createSelector: typeof import('@reduxjs/toolkit').createSelector;
       createCachedSelector: typeof import('re-reselect').createCachedSelector;
     };
 
     // react and react-dom for plugins to use, injected in main.tsx
-    __SHARKORD_REACT__: typeof import('react');
-    __SHARKORD_REACT_JSX__: typeof import('react/jsx-runtime');
-    __SHARKORD_REACT_JSX_DEV__: typeof import('react/jsx-dev-runtime');
-    __SHARKORD_REACT_DOM__: typeof import('react-dom');
-    __SHARKORD_REACT_DOM_CLIENT__: typeof import('react-dom/client');
+    __KURIER_REACT__: typeof import('react');
+    __KURIER_REACT_JSX__: typeof import('react/jsx-runtime');
+    __KURIER_REACT_JSX_DEV__: typeof import('react/jsx-dev-runtime');
+    __KURIER_REACT_DOM__: typeof import('react-dom');
+    __KURIER_REACT_DOM_CLIENT__: typeof import('react-dom/client');
   }
 
   const VITE_APP_VERSION: string;

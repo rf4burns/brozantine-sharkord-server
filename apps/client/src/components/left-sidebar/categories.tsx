@@ -23,8 +23,8 @@ import {
   verticalListSortingStrategy
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Permission, TestId, getTrpcError } from '@sharkord/shared';
-import { IconButton } from '@sharkord/ui';
+import { Permission, TestId, getTrpcError } from '@kurier/shared';
+import { IconButton } from '@kurier/ui';
 import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import { memo, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -80,11 +80,11 @@ const Category = memo(({ categoryId }: TCategoryProps) => {
         transition,
         opacity: isDragging ? 0.5 : 1
       }}
-      className="mb-4"
+      className="mb-2"
       data-testid={TestId.CATEGORY_ITEM}
       data-category-id={category.id}
     >
-      <div className="mb-1 flex w-full items-center px-2 py-1 text-xs font-semibold text-muted-foreground">
+      <div className="mb-0.5 flex w-full items-center px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-faint">
         <div className="flex w-full items-stretch gap-1">
           <IconButton
             variant="ghost"

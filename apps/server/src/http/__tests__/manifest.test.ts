@@ -1,4 +1,4 @@
-import type { TWebAppManifest } from '@sharkord/shared';
+import type { TWebAppManifest } from '@kurier/shared';
 import { describe, expect, test } from 'bun:test';
 import { testsBaseUrl } from '../../__tests__/setup';
 
@@ -48,15 +48,11 @@ describe('/manifest.json', () => {
     const response = await fetch(`${testsBaseUrl}/manifest.json`);
     const manifest = (await response.json()) as TWebAppManifest;
 
-    const hasDefaultIcon192 = manifest.icons.some(
-      (icon) => icon.src === '/icon-192.png' && icon.sizes === '192x192'
-    );
-    const hasDefaultIcon512 = manifest.icons.some(
-      (icon) => icon.src === '/icon-512.png' && icon.sizes === '512x512'
+    const hasDefaultMark = manifest.icons.some(
+      (icon) => icon.src === '/kurier-mark.svg' && icon.type === 'image/svg+xml'
     );
 
-    expect(hasDefaultIcon192).toBe(true);
-    expect(hasDefaultIcon512).toBe(true);
+    expect(hasDefaultMark).toBe(true);
   });
 
   test('should include required icon properties', async () => {

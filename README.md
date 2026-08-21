@@ -1,10 +1,10 @@
-# Brozantine Sharkord Server
+# Kurier
 
-Private [Sharkord](https://github.com/Sharkord/sharkord) fork that runs Brozantine's self-hosted chat: text, voice, video, and screen share on your own box.
+Self-hosted messenger for small groups: text, voice, video, and screen share on your own box. Named for the imperial couriers of the Holy Roman Empire.
+
+This repo is the Bun monorepo: server (tRPC, SQLite, mediasoup) plus the React web client. It is a Brozantine fork of [Sharkord](https://github.com/Sharkord/sharkord), rebranded and extended for Kurier.
 
 **Live:** [https://sharkord.brozantine.com](https://sharkord.brozantine.com)
-
-This repo is the Bun monorepo: server (tRPC, SQLite, mediasoup) plus the React web client. It is not the Flutter apps.
 
 | Client | Repo |
 | --- | --- |
@@ -12,31 +12,28 @@ This repo is the Bun monorepo: server (tRPC, SQLite, mediasoup) plus the React w
 | Native Windows desktop | [KillerAuzzie/Sharkord-native-source](https://github.com/KillerAuzzie/Sharkord-native-source) |
 
 > [!NOTE]
-> Sharkord is still in alpha. Bugs, incomplete features, and breaking changes are expected.
+> Kurier is still in alpha. Bugs, incomplete features, and breaking changes are expected. The React web client works in mobile browsers but is **not optimized for phones/tablets** yet (desktop-first layout with a rough responsive overlay).
 
 ## What it is
 
-Sharkord is a self-hosted communication platform for small groups. Think TeamSpeak: focused, lightweight, easy to run, no paywalls. It is not a Discord clone and is not aimed at huge communities.
+Kurier is a self-hosted communication platform for families, friends, and small teams. Think TeamSpeak: focused, lightweight, easy to run, no paywalls. It is not a Discord clone and is not aimed at huge communities.
 
-Upstream docs: [sharkord.com/docs](https://sharkord.com/docs).
+Current package version: **0.0.24** (built on the Brozantine `v0.0.23` baseline).
 
-This Brozantine fork keeps that core and adds the client, server, and permission work below on top of upstream Sharkord `0.0.23`.
-
-## Changes in this fork
-
-Everything here is new versus [Sharkord/sharkord](https://github.com/Sharkord/sharkord) `development`. Ported from the Brozantine native/web Flutter clients unless noted.
+## Features
 
 ### Chat and compose
 
-- **KLIPY GIF picker** in the composer: search, trending, Favourites tab, user-settings key, SPA scrape fallback, and a baked-in key on `sharkord.brozantine.com` / `*.brozantine.com`
+- **KLIPY GIF picker** in the composer: search, trending, Favourites tab, user-settings key, SPA scrape fallback, and a baked-in key on Brozantine hosts
 - **GIF URL embeds** in the text renderer (`media.klipy.com` and similar) so GIF messages are not a raw link
-- **Discord-category emoji picker** with Twemoji glyphs, custom-emoji tab, search, and a frequently-used rail (replaces the GitHub/`@tiptap` catalog)
+- **Discord-category emoji picker** with Twemoji glyphs, custom-emoji tab, search, and a frequently-used rail
 - **Copy image pixels** from chat and the lightbox (`ClipboardItem` PNG), with URL copy as fallback
 - **In-app YouTube**: rate-limited `others.resolveYoutube` via `youtubei.js`; HTML5 `<video>` of the extracted file URL (no iframe)
 - **Optimistic paste-send**: image paste uploads immediately with a temp message id and local blob preview, then swaps to the server row
 - **Virtuoso-virtualized chat**: windowed DOM, start on the latest message, prepend older history without jump, idle-prune inactive channel maps
 - **Jump to bottom** FAB with a new-message count while scrolled up
 - **Unread text channels** use white/primary names until opened; mention badges stay red
+- **Per-channel notification overrides** (`channels.setNotificationOverride`) with realtime sync
 - **5-minute message grouping**, mention highlight, and overlay-style compose/chat header (topic/status in the header)
 
 ### Voice and video
@@ -45,7 +42,7 @@ Everything here is new versus [Sharkord/sharkord](https://github.com/Sharkord/sh
 - **Mic and speaker device popovers** (input/output + input volume) that apply immediately if already in voice
 - **Voice device check** dialog before join (mic, camera, output, gate, test)
 - **Push-to-talk** with a capturable keybind (default `` ` ``)
-- **In-call mic monitor** (Discord-style: starting monitor force-deafens; undeafen or leave stops it)
+- **In-call mic monitor** (starting a monitor force-deafens; undeafen or leave stops it)
 - **Change screen-share source** mid-share (`replaceTrack`) plus system/tab audio capture options
 - **Music bot panel** when the `music-bot` plugin is installed: play, queue, skip, stop, volume via `plugins.executeAction`; speaking ring on the external audio stream
 - **Voice channel status** (reuses `channels.topic`) with `SET_VOICE_CHANNEL_STATUS` (or `MANAGE_CHANNELS`); subtitle under voice names and a context-menu Set status
@@ -56,9 +53,9 @@ Everything here is new versus [Sharkord/sharkord](https://github.com/Sharkord/sh
 
 ### Shell, hosts, and appearance
 
-- **Saved-host server rail**: add / switch / remove Sharkord hosts, JWT per host, reconnect on switch
-- **Discord-style desktop shell**: 72px rail, no global top bar, channel header, user/voice panels
-- **Sharkord mark** branding (favicon, rail, login) instead of Discord Clyde
+- **Saved-host server rail**: add / switch / remove Kurier hosts, JWT per host, reconnect on switch
+- **Desktop shell**: 72px rail, no global top bar, channel header, user/voice panels
+- **Kurier mark** branding (favicon, rail, login): imperial eagle and postal horn
 - **12 appearance presets** (Dark, Midnight, Slate, Charcoal, Ocean, Forest, Dusk, Crimson, Light, Sand, Paper, Arctic) plus accent swatches; default Dark + blurple
 - **Sounds settings** tab (opens the sounds dialog)
 - **Red mention pills** on channels, DMs, categories, and the server rail (`mentionUnreadByChannel`, `@here` respects online)
@@ -77,17 +74,19 @@ Everything here is new versus [Sharkord/sharkord](https://github.com/Sharkord/sh
 - **Nickname update** gated; mods can set others via `users.updateNickname`
 - **User tombstone delete**: `users.deleted` / `deleted_at`; messages keep the same user id and name; no UI restore
 - **Server Audit Log** UI on `activityLog.get` (`VIEW_AUDIT_LOG`), with extra log types for mute, deafen, and nickname
+- **Server backup export** HTTP route (rate-limited zip of DB + public assets for privileged operators)
 
 ### Server and schema
 
-New tRPC routes: `activityLog.get`, `channels.updateVoiceStatus`, `others.resolveYoutube`, `roles.reorder`, `users.mute`, `users.deafen`, `users.updateNickname`, `voice.restartIce`.
+tRPC routes include `activityLog.get`, `channels.setNotificationOverride`, `channels.updateVoiceStatus`, `others.resolveYoutube`, `roles.reorder`, `users.mute`, `users.deafen`, `users.updateNickname`, `voice.restartIce`.
 
-Migrations `0018`–`0020`:
+Migrations `0018`–`0021`:
 
 - Users: `nickname`, `pronouns`, `status_message`, `preferences`, `server_muted`, `server_deafened`, `deleted`, `deleted_at`
 - Roles: `position`, `hoist`
 - Activity log: nullable `user_id` (`ON DELETE SET NULL`) plus type/created indexes
 - Permission backfills for Owner and the default role
+- Channel notification overrides: `channel_notification_overrides` (`user_id`, `channel_id`, `level`)
 
 `youtubei.js` is a server dependency for YouTube extract. Voice timestamps stay in memory (no extra tables).
 
@@ -104,7 +103,7 @@ Bun workspaces. `bun install` at the root, then `./start.sh` (tmux) or `bun dev`
 | `packages/plugin-sdk` | Public API for plugins |
 | `packages/e2e` | Playwright tests |
 
-Client and server talk over **tRPC** (queries, mutations, WebSocket subscriptions). Login, uploads, static files, health, and plugin bundles live under `apps/server/src/http`.
+Client and server talk over **tRPC** (queries, mutations, WebSocket subscriptions). Login, uploads, static files, health, backup export, and plugin bundles live under `apps/server/src/http`.
 
 Runtime state (voice rooms, mediasoup transports) stays in memory. Anything persistent goes through SQLite.
 
@@ -145,28 +144,26 @@ That runs format, typecheck, and lint.
 
 ## Production
 
-Stock Sharkord also ships a standalone binary and Docker image. For a vanilla binary, see [upstream releases](https://github.com/Sharkord/sharkord/releases).
-
-Docker (upstream image):
+Docker:
 
 ```bash
 docker run \
   -p 4991:4991/tcp \
   -p 40000:40000/tcp \
   -p 40000:40000/udp \
-  -v ./data:/home/bun/.config/sharkord \
-  --name sharkord \
-  sharkord/sharkord:latest
+  -v ./data:/home/bun/.config/kurier \
+  --name kurier \
+  kurier/kurier:latest
 ```
 
 Then open [http://localhost:4991](http://localhost:4991). Put HTTPS in front of it in production (Caddy/nginx). Browsers block mic/camera on plain HTTP except localhost.
 
-Brozantine production is `sharkord.brozantine.com`. The Flutter web client is served in front of this process; stock Sharkord UI can still sit at `/vanilla/` on the same host.
+Brozantine production is `sharkord.brozantine.com`. The Flutter web client can sit in front of this process; the Kurier React UI remains the in-repo web client.
 
 ## Contributing
 
-This GitHub repo is Brozantine's private fork. Upstream Sharkord contribution rules are in [CONTRIBUTING.md](CONTRIBUTING.md) (issue first, PRs to `development`, CI must pass).
+Contribution rules are in [CONTRIBUTING.md](CONTRIBUTING.md) (issue first, PRs to `development`, CI must pass).
 
 ## License
 
-MIT. See [LICENSE](LICENSE). Copyright remains with the Sharkord team for upstream code.
+MIT. See [LICENSE](LICENSE).

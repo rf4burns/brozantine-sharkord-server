@@ -6,7 +6,7 @@ import {
   isEmptyMessage,
   Permission,
   toDomCommand
-} from '@sharkord/shared';
+} from '@kurier/shared';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { config } from '../../config';
@@ -15,6 +15,7 @@ import { publishMessage, publishReplyCount } from '../../db/publishers';
 import { assertDmChannel, isDirectMessageChannel } from '../../db/queries/dms';
 import { getSettings } from '../../db/queries/server';
 import { messageFiles, messages } from '../../db/schema';
+import { stripEveryoneMentions } from '../../helpers/everyone-mentions';
 import { getInvokerCtxFromTrpcCtx } from '../../helpers/get-invoker-ctx-from-trpc-ctx';
 import { parseCommandArgs } from '../../helpers/parse-command-args';
 import { sanitizeMessageHtml } from '../../helpers/sanitize-html';
@@ -114,6 +115,8 @@ const sendMessageRoute = rateLimitedProcedure(protectedProcedure, {
     );
 
     if (limitedFiles.length > 0) {
+      await ctx.needsPermission(Permission.UPLOAD_FILES);
+
       invariant(settings.storageUploadEnabled, {
         code: 'FORBIDDEN',
         message: 'File uploads are disabled on this server'
@@ -133,6 +136,16 @@ const sendMessageRoute = rateLimitedProcedure(protectedProcedure, {
     });
 
     let targetContent = sanitizeMessageHtml(input.content);
+
+    if (!isDmChannel) {
+      const canMentionEveryone = await ctx.hasPermission(
+        Permission.MENTION_EVERYONE
+      );
+
+      if (!canMentionEveryone) {
+        targetContent = stripEveryoneMentions(targetContent);
+      }
+    }
 
     invariant(!isEmptyMessage(targetContent) || limitedFiles.length != 0, {
       code: 'BAD_REQUEST',
@@ -275,7 +288,12 @@ const sendMessageRoute = rateLimitedProcedure(protectedProcedure, {
       publishReplyCount(input.parentMessageId, input.channelId);
     }
 
-    enqueueProcessMetadata(targetContent, message.id);
+    const canEmbedLinks =
+      isDmChannel || (await ctx.hasPermission(Permission.EMBED_LINKS));
+
+    if (canEmbedLinks) {
+      enqueueProcessMetadata(targetContent, message.id);
+    }
 
     eventBus.emit('message:created', {
       messageId: message.id,

@@ -1,6 +1,10 @@
 import { MICROPHONE_GATE_DEFAULT_THRESHOLD_DB } from '@/helpers/audio-gate';
 import { getRestrictOwnAudioSupport } from '@/helpers/get-display-media-support';
 import {
+  DEFAULT_PTT_KEYBIND,
+  normalizePttKeybind
+} from '@/helpers/ptt-keybind';
+import {
   getLocalStorageItemAsJSON,
   LocalStorageKey,
   setLocalStorageItemAsJSON
@@ -9,9 +13,10 @@ import {
   NoiseSuppression,
   Resolution,
   VideoCodec,
+  VoiceInputMode,
   type TDeviceSettings
 } from '@/types';
-import { DEFAULT_BITRATE } from '@sharkord/shared';
+import { DEFAULT_BITRATE } from '@kurier/shared';
 import {
   createContext,
   memo,
@@ -31,8 +36,13 @@ const getDefaultDeviceSettings = (): TDeviceSettings => ({
   echoCancellation: false,
   noiseSuppression: NoiseSuppression.NONE,
   autoGainControl: true,
-  noiseGateEnabled: false,
+  noiseGateEnabled: true,
   noiseGateThresholdDb: MICROPHONE_GATE_DEFAULT_THRESHOLD_DB,
+  inputMode: VoiceInputMode.VAD,
+  pttKeybind: DEFAULT_PTT_KEYBIND,
+  attenuationEnabled: true,
+  attenuationPercent: 80,
+  skipVoiceDeviceCheck: false,
   shareSystemAudio: true,
   restrictOwnAudio: getRestrictOwnAudioSupport(),
   suppressLocalAudioPlayback: false,
@@ -227,11 +237,29 @@ const DevicesProvider = memo(({ children }: TDevicesProviderProps) => {
           ? (savedSettings.restrictOwnAudio ?? true)
           : false;
 
+        const inputModeValues = Object.values(VoiceInputMode) as string[];
+        const rawInputMode = savedSettings.inputMode as unknown;
+        const inputMode = inputModeValues.includes(rawInputMode as string)
+          ? (rawInputMode as VoiceInputMode)
+          : VoiceInputMode.VAD;
+
+        const attenuationPercent = Number(savedSettings.attenuationPercent);
+
         base = {
           ...defaultDeviceSettings,
           ...savedSettings,
           noiseSuppression,
-          restrictOwnAudio
+          restrictOwnAudio,
+          inputMode,
+          pttKeybind: normalizePttKeybind(savedSettings.pttKeybind),
+          attenuationEnabled: savedSettings.attenuationEnabled ?? true,
+          attenuationPercent:
+            Number.isFinite(attenuationPercent) &&
+            attenuationPercent >= 0 &&
+            attenuationPercent <= 100
+              ? attenuationPercent
+              : 80,
+          skipVoiceDeviceCheck: savedSettings.skipVoiceDeviceCheck ?? false
         };
       } else {
         base = defaultDeviceSettings;

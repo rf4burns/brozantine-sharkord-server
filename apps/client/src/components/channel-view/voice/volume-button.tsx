@@ -9,7 +9,7 @@ import {
   PopoverTrigger,
   Slider,
   type TIconButtonSize
-} from '@sharkord/ui';
+} from '@kurier/ui';
 import { Volume2, VolumeX } from 'lucide-react';
 import { memo, useCallback } from 'react';
 

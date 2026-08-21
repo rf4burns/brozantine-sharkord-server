@@ -3,66 +3,101 @@ import {
   LocalStorageKey,
   setLocalStorageItem
 } from '@/helpers/storage';
-import { createContext, useContext, useEffect, useState } from 'react';
-
-type Theme = 'dark' | 'light' | 'system';
+import {
+  applyThemeToDocument,
+  DEFAULT_THEME_ACCENT,
+  DEFAULT_THEME_PRESET,
+  parseThemeAccent,
+  parseThemePreset,
+  type TThemePreset
+} from '@/lib/theme-presets';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState
+} from 'react';
 
 type ThemeProviderProps = {
   children: React.ReactNode;
-  defaultTheme?: Theme;
-  storageKey?: LocalStorageKey;
+  defaultPreset?: TThemePreset;
+  defaultAccent?: string;
 };
 
 type ThemeProviderState = {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
+  preset: TThemePreset;
+  accent: string;
+  setPreset: (preset: TThemePreset) => void;
+  setAccent: (accent: string) => void;
 };
 
 const initialState: ThemeProviderState = {
-  theme: 'system',
-  setTheme: () => null
+  preset: DEFAULT_THEME_PRESET,
+  accent: DEFAULT_THEME_ACCENT,
+  setPreset: () => undefined,
+  setAccent: () => undefined
 };
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 
+const readInitialPreset = (fallback: TThemePreset) => {
+  const storedPreset = getLocalStorageItem(LocalStorageKey.THEME_PRESET);
+  const legacyTheme = getLocalStorageItem(LocalStorageKey.VITE_UI_THEME);
+
+  return parseThemePreset(storedPreset ?? legacyTheme) || fallback;
+};
+
 function ThemeProvider({
   children,
-  defaultTheme = 'system',
-  storageKey = LocalStorageKey.VITE_UI_THEME,
-  ...props
+  defaultPreset = DEFAULT_THEME_PRESET,
+  defaultAccent = DEFAULT_THEME_ACCENT
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(
-    () => (getLocalStorageItem(storageKey) as Theme) || defaultTheme
+  const [preset, setPresetState] = useState<TThemePreset>(() => {
+    const next = readInitialPreset(defaultPreset);
+    applyThemeToDocument(
+      next,
+      parseThemeAccent(getLocalStorageItem(LocalStorageKey.THEME_ACCENT))
+    );
+    return next;
+  });
+  const [accent, setAccentState] = useState(() =>
+    parseThemeAccent(
+      getLocalStorageItem(LocalStorageKey.THEME_ACCENT) ?? defaultAccent
+    )
   );
 
-  useEffect(() => {
-    const root = window.document.documentElement;
+  const setPreset = useCallback(
+    (next: TThemePreset) => {
+      setLocalStorageItem(LocalStorageKey.THEME_PRESET, next);
+      applyThemeToDocument(next, accent);
+      setPresetState(next);
+    },
+    [accent]
+  );
 
-    root.classList.remove('light', 'dark');
+  const setAccent = useCallback(
+    (next: string) => {
+      const parsed = parseThemeAccent(next);
+      setLocalStorageItem(LocalStorageKey.THEME_ACCENT, parsed);
+      applyThemeToDocument(preset, parsed);
+      setAccentState(parsed);
+    },
+    [preset]
+  );
 
-    if (theme === 'system') {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
-        .matches
-        ? 'dark'
-        : 'light';
-
-      root.classList.add(systemTheme);
-      return;
-    }
-
-    root.classList.add(theme);
-  }, [theme]);
-
-  const value = {
-    theme,
-    setTheme: (theme: Theme) => {
-      setLocalStorageItem(storageKey, theme);
-      setTheme(theme);
-    }
-  };
+  const value = useMemo(
+    () => ({
+      preset,
+      accent,
+      setPreset,
+      setAccent
+    }),
+    [preset, accent, setPreset, setAccent]
+  );
 
   return (
-    <ThemeProviderContext.Provider {...props} value={value}>
+    <ThemeProviderContext.Provider value={value}>
       {children}
     </ThemeProviderContext.Provider>
   );
@@ -71,11 +106,11 @@ function ThemeProvider({
 const useTheme = () => {
   const context = useContext(ThemeProviderContext);
 
-  if (context === undefined)
+  if (context === undefined) {
     throw new Error('useTheme must be used within a ThemeProvider');
+  }
 
   return context;
 };
 
-// eslint-disable-next-line react-refresh/only-export-components
 export { ThemeProvider, useTheme };

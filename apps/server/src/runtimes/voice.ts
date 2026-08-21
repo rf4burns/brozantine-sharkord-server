@@ -8,7 +8,7 @@ import {
   type TTransportParams,
   type TVoiceMap,
   type TVoiceUserState
-} from '@sharkord/shared';
+} from '@kurier/shared';
 import type {
   AppData,
   Consumer,
@@ -98,6 +98,8 @@ const defaultRouterOptions: RouterOptions<AppData> = {
 const defaultUserState: TVoiceUserState = {
   micMuted: false,
   soundMuted: false,
+  serverMuted: false,
+  serverDeafened: false,
   webcamEnabled: false,
   sharingScreen: false
 };
@@ -136,7 +138,11 @@ type TExternalStreamInternal = {
 
 class VoiceRuntime {
   public readonly id: number;
-  private state: TChannelState = { users: [], externalStreams: {} };
+  private state: TChannelState = {
+    users: [],
+    occupiedSince: null,
+    externalStreams: {}
+  };
   private router?: Router<AppData>;
   private consumerTransports: TTransportMap = {};
   private producerTransports: TTransportMap = {};
@@ -177,17 +183,20 @@ class VoiceRuntime {
     const map: TVoiceMap = {};
 
     voiceRuntimes.forEach((runtime, channelId) => {
-      map[channelId] = {
+      const channelState = runtime.getState();
+      const channelMap: TVoiceMap[number] = {
+        occupiedSince: channelState.occupiedSince,
         users: {}
       };
 
-      runtime.getState().users.forEach((user) => {
-        if (!map[channelId]) {
-          map[channelId] = { users: {} };
-        }
-
-        map[channelId].users[user.userId] = user.state;
+      channelState.users.forEach((user) => {
+        channelMap.users[user.userId] = {
+          ...user.state,
+          joinedAt: user.joinedAt
+        };
       });
+
+      map[channelId] = channelMap;
     });
 
     return map;
@@ -380,19 +389,23 @@ class VoiceRuntime {
     return user?.state ?? defaultUserState;
   };
 
-  public addUser = (
-    userId: number,
-    state: Pick<TVoiceUserState, 'micMuted' | 'soundMuted'>
-  ) => {
+  public addUser = (userId: number, state: Partial<TVoiceUserState>) => {
     if (this.getUser(userId)) return;
+
+    const joinedAt = Date.now();
 
     this.state.users.push({
       userId,
       state: {
         ...defaultUserState,
         ...state
-      }
+      },
+      joinedAt
     });
+
+    if (this.state.users.length === 1) {
+      this.state.occupiedSince = joinedAt;
+    }
 
     eventBus.emit('user:joined_voice', {
       userId: userId,
@@ -402,6 +415,10 @@ class VoiceRuntime {
 
   public removeUser = (userId: number) => {
     this.state.users = this.state.users.filter((u) => u.userId !== userId);
+
+    if (this.state.users.length === 0) {
+      this.state.occupiedSince = null;
+    }
 
     this.cleanupUserResources(userId);
 
@@ -513,12 +530,16 @@ class VoiceRuntime {
   };
 
   public createConsumerTransport = async (userId: number) => {
+    this.removeConsumerTransport(userId);
+
     const { transport, params } = await this.createTransport();
 
     this.consumerTransports[userId] = transport;
 
     transport.observer.on('close', () => {
-      delete this.consumerTransports[userId];
+      if (this.consumerTransports[userId] === transport) {
+        delete this.consumerTransports[userId];
+      }
 
       if (this.consumers[userId]) {
         Object.values(this.consumers[userId]).forEach((consumer) => {
@@ -530,7 +551,10 @@ class VoiceRuntime {
     });
 
     transport.on('dtlsstatechange', (state) => {
-      if (state === 'failed' || state === 'closed') {
+      if (
+        (state === 'failed' || state === 'closed') &&
+        this.consumerTransports[userId] === transport
+      ) {
         this.removeConsumerTransport(userId);
       }
     });
@@ -551,12 +575,16 @@ class VoiceRuntime {
   };
 
   public createProducerTransport = async (userId: number) => {
+    this.removeProducerTransport(userId);
+
     const { params, transport } = await this.createTransport();
 
     this.producerTransports[userId] = transport;
 
     transport.observer.on('close', () => {
-      delete this.producerTransports[userId];
+      if (this.producerTransports[userId] === transport) {
+        delete this.producerTransports[userId];
+      }
 
       this.removeProducer(userId, StreamKind.AUDIO);
       this.removeProducer(userId, StreamKind.VIDEO);
@@ -565,12 +593,28 @@ class VoiceRuntime {
     });
 
     transport.on('dtlsstatechange', (state) => {
-      if (state === 'failed' || state === 'closed') {
+      if (
+        (state === 'failed' || state === 'closed') &&
+        this.producerTransports[userId] === transport
+      ) {
         this.removeProducerTransport(userId);
       }
     });
 
     return params;
+  };
+
+  public restartIce = async (userId: number, direction: 'send' | 'recv') => {
+    const transport =
+      direction === 'send'
+        ? this.getProducerTransport(userId)
+        : this.getConsumerTransport(userId);
+
+    if (!transport || transport.closed) {
+      return undefined;
+    }
+
+    return transport.restartIce();
   };
 
   public removeProducerTransport = (userId: number) => {

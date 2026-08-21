@@ -1,7 +1,7 @@
+import { ActivityLog } from '@/components/server-screens/server-settings/audit-log';
 import { useCan } from '@/features/server/hooks';
-import { Permission } from '@sharkord/shared';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@sharkord/ui';
-import { memo, useMemo } from 'react';
+import { Permission, USER_ADMIN_VIEW_PERMISSIONS } from '@kurier/shared';
+import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TServerScreenBaseProps } from '../screens';
 import { ServerScreenLayout } from '../server-screen-layout';
@@ -25,86 +25,87 @@ const ServerSettings = memo(({ close }: TServerSettingsProps) => {
     if (can(Permission.MANAGE_ROLES)) return 'roles';
     if (can(Permission.MANAGE_EMOJIS)) return 'emojis';
     if (can(Permission.MANAGE_STORAGE)) return 'storage';
-    if (can(Permission.MANAGE_USERS)) return 'users';
+    if (can(USER_ADMIN_VIEW_PERMISSIONS)) return 'users';
     if (can(Permission.MANAGE_INVITES)) return 'invites';
+    if (can(Permission.VIEW_AUDIT_LOG)) return 'audit';
     if (can(Permission.MANAGE_UPDATES)) return 'updates';
     return 'general';
   }, [can]);
 
+  const [tab, setTab] = useState(defaultTab);
+
+  const groups = useMemo(
+    () => [
+      {
+        items: [
+          {
+            id: 'general',
+            label: t('generalTab'),
+            disabled: !can(Permission.MANAGE_SETTINGS)
+          },
+          {
+            id: 'roles',
+            label: t('rolesTab'),
+            disabled: !can(Permission.MANAGE_ROLES)
+          },
+          {
+            id: 'emojis',
+            label: t('emojisTab'),
+            disabled: !can(Permission.MANAGE_EMOJIS)
+          },
+          {
+            id: 'users',
+            label: t('usersTab'),
+            disabled: !can(USER_ADMIN_VIEW_PERMISSIONS)
+          },
+          {
+            id: 'invites',
+            label: t('invitesTab'),
+            disabled: !can(Permission.MANAGE_INVITES)
+          },
+          {
+            id: 'audit',
+            label: t('auditLogTab'),
+            disabled: !can(Permission.VIEW_AUDIT_LOG)
+          },
+          {
+            id: 'storage',
+            label: t('storageTab'),
+            disabled: !can(Permission.MANAGE_STORAGE)
+          },
+          {
+            id: 'plugins',
+            label: t('pluginsTab'),
+            disabled: !can(Permission.MANAGE_PLUGINS)
+          },
+          {
+            id: 'updates',
+            label: t('updatesTab'),
+            disabled: !can(Permission.MANAGE_UPDATES)
+          }
+        ]
+      }
+    ],
+    [can, t]
+  );
+
   return (
-    <ServerScreenLayout close={close} title={t('serverSettingsTitle')}>
-      <div className="mx-auto max-w-4xl">
-        <Tabs defaultValue={defaultTab} className="w-full">
-          <TabsList className="mb-6">
-            <TabsTrigger
-              value="general"
-              disabled={!can(Permission.MANAGE_SETTINGS)}
-            >
-              {t('generalTab')}
-            </TabsTrigger>
-            <TabsTrigger value="roles" disabled={!can(Permission.MANAGE_ROLES)}>
-              {t('rolesTab')}
-            </TabsTrigger>
-            <TabsTrigger
-              value="emojis"
-              disabled={!can(Permission.MANAGE_EMOJIS)}
-            >
-              {t('emojisTab')}
-            </TabsTrigger>
-            <TabsTrigger
-              value="storage"
-              disabled={!can(Permission.MANAGE_STORAGE)}
-            >
-              {t('storageTab')}
-            </TabsTrigger>
-            <TabsTrigger value="users" disabled={!can(Permission.MANAGE_USERS)}>
-              {t('usersTab')}
-            </TabsTrigger>
-            <TabsTrigger
-              value="invites"
-              disabled={!can(Permission.MANAGE_INVITES)}
-            >
-              {t('invitesTab')}
-            </TabsTrigger>
-            <TabsTrigger
-              value="updates"
-              disabled={!can(Permission.MANAGE_UPDATES)}
-            >
-              {t('updatesTab')}
-            </TabsTrigger>
-            <TabsTrigger
-              value="plugins"
-              disabled={!can(Permission.MANAGE_PLUGINS)}
-            >
-              {t('pluginsTab')}
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="general" className="space-y-6">
-            {can(Permission.MANAGE_SETTINGS) && <General />}
-          </TabsContent>
-          <TabsContent value="roles" className="space-y-6">
-            {can(Permission.MANAGE_ROLES) && <Roles />}
-          </TabsContent>
-          <TabsContent value="emojis" className="space-y-6">
-            {can(Permission.MANAGE_EMOJIS) && <Emojis />}
-          </TabsContent>
-          <TabsContent value="storage" className="space-y-6">
-            {can(Permission.MANAGE_STORAGE) && <Storage />}
-          </TabsContent>
-          <TabsContent value="users" className="space-y-6">
-            {can(Permission.MANAGE_USERS) && <Users />}
-          </TabsContent>
-          <TabsContent value="invites" className="space-y-6">
-            {can(Permission.MANAGE_INVITES) && <Invites />}
-          </TabsContent>
-          <TabsContent value="updates" className="space-y-6">
-            {can(Permission.MANAGE_UPDATES) && <Updates />}
-          </TabsContent>
-          <TabsContent value="plugins" className="space-y-6">
-            {can(Permission.MANAGE_PLUGINS) && <Plugins />}
-          </TabsContent>
-        </Tabs>
-      </div>
+    <ServerScreenLayout
+      close={close}
+      title={t('serverSettingsTitle')}
+      groups={groups}
+      value={tab}
+      onValueChange={setTab}
+    >
+      {tab === 'general' && can(Permission.MANAGE_SETTINGS) && <General />}
+      {tab === 'roles' && can(Permission.MANAGE_ROLES) && <Roles />}
+      {tab === 'emojis' && can(Permission.MANAGE_EMOJIS) && <Emojis />}
+      {tab === 'storage' && can(Permission.MANAGE_STORAGE) && <Storage />}
+      {tab === 'users' && can(USER_ADMIN_VIEW_PERMISSIONS) && <Users />}
+      {tab === 'invites' && can(Permission.MANAGE_INVITES) && <Invites />}
+      {tab === 'audit' && can(Permission.VIEW_AUDIT_LOG) && <ActivityLog />}
+      {tab === 'updates' && can(Permission.MANAGE_UPDATES) && <Updates />}
+      {tab === 'plugins' && can(Permission.MANAGE_PLUGINS) && <Plugins />}
     </ServerScreenLayout>
   );
 });

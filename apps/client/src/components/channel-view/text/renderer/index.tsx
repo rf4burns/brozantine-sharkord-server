@@ -6,8 +6,8 @@ import { getFileUrl } from '@/helpers/get-file-url';
 import { getRenderedUsername } from '@/helpers/get-rendered-username';
 import { getTRPCClient } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
-import { type TJoinedMessage } from '@sharkord/shared';
-import { Tooltip } from '@sharkord/ui';
+import { type TJoinedMessage } from '@kurier/shared';
+import { Tooltip } from '@kurier/ui';
 import { memo, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -72,46 +72,51 @@ const MessageRenderer = memo(
       () => extractMessageOpenGraph(message, allMedia),
       [message, allMedia]
     );
+    const showContentBlock = messageHtml != null || !!message.editedAt;
 
     return (
       <div className="flex flex-col gap-1">
-        <div
-          className={cn(
-            'prose max-w-full wrap-break-word msg-content',
-            emojiOnly && 'emoji-only',
-            message.editedAt && 'msg-edited'
-          )}
-        >
-          <ErrorBoundary
-            fallback={(error, reset) => (
-              <MessageRenderFallback error={error} reset={reset} />
+        {showContentBlock && (
+          <div
+            className={cn(
+              'prose max-w-full wrap-break-word msg-content',
+              emojiOnly && 'emoji-only',
+              message.editedAt && 'msg-edited'
             )}
           >
-            {messageHtml}
-          </ErrorBoundary>
-          {message.editedAt && (
-            <Tooltip
-              content={
-                <div className="flex flex-col gap-1">
-                  <RelativeTime date={new Date(message.editedAt)}>
-                    {(relativeTime) => (
-                      <span className="text-secondary text-xs">
-                        {editedByUser
-                          ? getRenderedUsername(editedByUser)
-                          : t('unknownUser')}{' '}
-                        {relativeTime}
-                      </span>
-                    )}
-                  </RelativeTime>
-                </div>
-              }
-            >
-              <span className="msg-edit ml-1 text-xs text-muted-foreground">
-                {t('edited')}
-              </span>
-            </Tooltip>
-          )}
-        </div>
+            {messageHtml != null && (
+              <ErrorBoundary
+                fallback={(error, reset) => (
+                  <MessageRenderFallback error={error} reset={reset} />
+                )}
+              >
+                {messageHtml}
+              </ErrorBoundary>
+            )}
+            {message.editedAt && (
+              <Tooltip
+                content={
+                  <div className="flex flex-col gap-1">
+                    <RelativeTime date={new Date(message.editedAt)}>
+                      {(relativeTime) => (
+                        <span className="text-secondary text-xs">
+                          {editedByUser
+                            ? getRenderedUsername(editedByUser)
+                            : t('unknownUser')}{' '}
+                          {relativeTime}
+                        </span>
+                      )}
+                    </RelativeTime>
+                  </div>
+                }
+              >
+                <span className="msg-edit ml-1 text-xs text-muted-foreground">
+                  {t('edited')}
+                </span>
+              </Tooltip>
+            )}
+          </div>
+        )}
 
         <Media media={allMedia} />
         <OpenGraph previews={openGraphPreviews} />

@@ -3,6 +3,7 @@ import { getTRPCClient } from '@/lib/trpc';
 import {
   addChannel,
   removeChannel,
+  setChannelNotificationOverride,
   setChannelPermissions,
   setChannelReadState,
   updateChannel
@@ -67,6 +68,16 @@ const subscribeToChannels = () => {
     }
   );
 
+  const onChannelNotificationOverrideSub =
+    trpc.channels.onNotificationOverride.subscribe(undefined, {
+      onData: (data) => {
+        logDebug('[EVENTS] channels.onNotificationOverride', { data });
+        setChannelNotificationOverride(data);
+      },
+      onError: (err) =>
+        console.error('onChannelNotificationOverride subscription error:', err)
+    });
+
   return () => {
     onChannelCreateSub.unsubscribe();
     onChannelDeleteSub.unsubscribe();
@@ -74,6 +85,7 @@ const subscribeToChannels = () => {
     onChannelPermissionsUpdateSub.unsubscribe();
     onChannelReadStatesUpdateSub.unsubscribe();
     onChannelReadStatesDeltaSub.unsubscribe();
+    onChannelNotificationOverrideSub.unsubscribe();
   };
 };
 

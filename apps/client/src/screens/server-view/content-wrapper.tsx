@@ -1,5 +1,6 @@
 import { TextChannel } from '@/components/channel-view/text';
 import { VoiceChannel } from '@/components/channel-view/voice';
+import { ChatHeader } from '@/components/chat-header';
 import { PluginSlotRenderer } from '@/components/plugin-slot-renderer';
 import {
   useSelectedChannelId,
@@ -9,8 +10,8 @@ import {
   useActiveFullscreenPluginId,
   useServerName
 } from '@/features/server/hooks';
-import { ChannelType, PluginSlot } from '@sharkord/shared';
-import { Alert, AlertDescription } from '@sharkord/ui';
+import { ChannelType, PluginSlot } from '@kurier/shared';
+import { Alert, AlertDescription } from '@kurier/ui';
 import { AlertTriangle, ArrowLeft, ArrowRight } from 'lucide-react';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -18,10 +19,17 @@ import { useTranslation } from 'react-i18next';
 type TContentWrapperProps = {
   isDmMode: boolean;
   selectedDmChannelId?: number;
+  onToggleRightSidebar: () => void;
+  isRightSidebarOpen: boolean;
 };
 
 const ContentWrapper = memo(
-  ({ isDmMode, selectedDmChannelId }: TContentWrapperProps) => {
+  ({
+    isDmMode,
+    selectedDmChannelId,
+    onToggleRightSidebar,
+    isRightSidebarOpen
+  }: TContentWrapperProps) => {
     const { t } = useTranslation();
     const selectedChannelId = useSelectedChannelId();
     const selectedChannelType = useSelectedChannelType();
@@ -30,8 +38,8 @@ const ContentWrapper = memo(
 
     if (activeFullscreenPluginId) {
       return (
-        <main className="flex flex-1 flex-col bg-background relative min-w-0 min-h-0">
-          <div className="flex-col gap-2 h-full w-full flex overflow-auto relative bg-background">
+        <main className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-background">
+          <div className="relative flex h-full w-full flex-col overflow-auto bg-background">
             <PluginSlotRenderer
               slotId={PluginSlot.FULL_SCREEN}
               activeFullscreenPluginId={activeFullscreenPluginId}
@@ -42,6 +50,8 @@ const ContentWrapper = memo(
     }
 
     let content;
+    let showOuterHeader = false;
+    let headerChannelId: number | undefined;
 
     if (isDmMode) {
       if (selectedDmChannelId) {
@@ -49,40 +59,43 @@ const ContentWrapper = memo(
           <TextChannel
             key={selectedDmChannelId}
             channelId={selectedDmChannelId}
+            onToggleRightSidebar={onToggleRightSidebar}
+            isRightSidebarOpen={isRightSidebarOpen}
           />
         );
       } else {
+        showOuterHeader = true;
         content = (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
             {t('selectDmPrompt')}
           </div>
         );
       }
-
-      return (
-        <main className="flex flex-1 flex-col bg-background relative min-w-0 min-h-0">
-          {content}
-        </main>
-      );
-    }
-
-    if (selectedChannelId) {
+    } else if (selectedChannelId) {
       if (selectedChannelType === ChannelType.TEXT) {
         content = (
-          <TextChannel key={selectedChannelId} channelId={selectedChannelId} />
+          <TextChannel
+            key={selectedChannelId}
+            channelId={selectedChannelId}
+            onToggleRightSidebar={onToggleRightSidebar}
+            isRightSidebarOpen={isRightSidebarOpen}
+          />
         );
       } else if (selectedChannelType === ChannelType.VOICE) {
+        showOuterHeader = true;
+        headerChannelId = selectedChannelId;
         content = (
           <VoiceChannel key={selectedChannelId} channelId={selectedChannelId} />
         );
       }
     } else {
+      showOuterHeader = true;
       content = (
         <>
-          <div className="flex-col gap-2 h-full w-full hidden lg:flex overflow-auto">
+          <div className="hidden h-full w-full flex-col gap-2 overflow-auto lg:flex">
             <PluginSlotRenderer slotId={PluginSlot.HOME_SCREEN} />
           </div>
-          <div className="flex flex-col items-center justify-center h-full gap-6 p-8 text-center md:hidden">
+          <div className="flex h-full flex-col items-center justify-center gap-6 p-8 text-center md:hidden">
             <div className="flex flex-col gap-2">
               <h2 className="text-2xl font-semibold text-foreground">
                 {t('welcomeToServer', { name: serverName })}
@@ -112,7 +125,15 @@ const ContentWrapper = memo(
     }
 
     return (
-      <main className="flex flex-1 flex-col bg-background relative min-w-0 min-h-0">
+      <main className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-background">
+        {showOuterHeader && (
+          <ChatHeader
+            channelId={headerChannelId}
+            isDmMode={isDmMode}
+            onToggleRightSidebar={onToggleRightSidebar}
+            isRightSidebarOpen={isRightSidebarOpen}
+          />
+        )}
         {content}
       </main>
     );

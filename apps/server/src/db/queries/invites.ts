@@ -1,4 +1,4 @@
-import type { TInvite, TJoinedInvite } from '@sharkord/shared';
+import type { TInvite, TJoinedInvite } from '@kurier/shared';
 import { eq } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 import { db } from '..';
@@ -44,9 +44,14 @@ const getInvites = async (): Promise<TJoinedInvite[]> => {
       creator: {
         id: users.id,
         name: users.name,
+        nickname: users.nickname,
+        pronouns: users.pronouns,
+        statusMessage: users.statusMessage,
+        preferences: users.preferences,
         profileColor: users.profileColor,
         bio: users.bio,
         banned: users.banned,
+        deleted: users.deleted,
         createdAt: users.createdAt,
         avatarId: users.avatarId,
         bannerId: users.bannerId

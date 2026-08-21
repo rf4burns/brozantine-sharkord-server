@@ -177,6 +177,30 @@ export type TChannelUserPermissionsMap = Record<
 
 export type TReadStateMap = Record<number, number>;
 
+export const CHANNEL_NOTIFICATION_LEVELS = [
+  'all',
+  'mentions',
+  'nothing'
+] as const;
+
+export type TChannelNotificationLevel =
+  (typeof CHANNEL_NOTIFICATION_LEVELS)[number];
+
+export type TChannelNotificationOverridesMap = Record<
+  number,
+  TChannelNotificationLevel
+>;
+
+export const USER_LEFT_REASONS = [
+  'disconnect',
+  'kick',
+  'ban',
+  'delete',
+  'server_shutdown'
+] as const;
+
+export type TUserLeftReason = (typeof USER_LEFT_REASONS)[number];
+
 export type TDirectMessageConversation = {
   channelId: number;
   userId: number;
@@ -185,5 +209,11 @@ export type TDirectMessageConversation = {
 };
 
 export const DEFAULT_PROFILE_COLOR = '#262626';
+
+export type TUserPreferences = {
+  theme?: 'system' | 'light' | 'dark';
+  locale?: string;
+  compactMode?: boolean;
+};
 
 export const HEX_COLOR_REGEX = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;

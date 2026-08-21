@@ -1,4 +1,8 @@
-import { Permission } from '@sharkord/shared';
+import {
+  ActivityLogType,
+  Permission,
+  getPlainTextFromHtml
+} from '@kurier/shared';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../../db';
@@ -8,6 +12,7 @@ import { getFilesByMessageId } from '../../db/queries/files';
 import { messages } from '../../db/schema';
 import { assertChannelAccess } from '../../helpers/assert-channel-access';
 import { eventBus } from '../../plugins/event-bus';
+import { enqueueActivityLog } from '../../queues/activity-log';
 import { invariant } from '../../utils/invariant';
 import { protectedProcedure } from '../../utils/trpc';
 
@@ -18,7 +23,8 @@ const deleteMessageRoute = protectedProcedure
       .select({
         userId: messages.userId,
         channelId: messages.channelId,
-        parentMessageId: messages.parentMessageId
+        parentMessageId: messages.parentMessageId,
+        content: messages.content
       })
       .from(messages)
       .where(eq(messages.id, input.messageId))
@@ -82,6 +88,22 @@ const deleteMessageRoute = protectedProcedure
     eventBus.emit('message:deleted', {
       channelId: targetMessage.channelId,
       messageId: input.messageId
+    });
+
+    const contentPreview = targetMessage.content
+      ? getPlainTextFromHtml(targetMessage.content).slice(0, 200)
+      : undefined;
+
+    enqueueActivityLog({
+      type: ActivityLogType.MESSAGE_DELETED,
+      userId: ctx.userId,
+      details: {
+        messageId: input.messageId,
+        channelId: targetMessage.channelId,
+        authorId: targetMessage.userId,
+        deletedBy: ctx.userId,
+        contentPreview
+      }
     });
   });
 

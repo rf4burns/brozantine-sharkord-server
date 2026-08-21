@@ -1,9 +1,11 @@
-import { ChannelPermission, Permission } from '@sharkord/shared';
+import { ChannelPermission, Permission } from '@kurier/shared';
 import { useCallback, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import type { IRootState } from '../store';
 import { useChannelById, useChannelPermissionsById } from './channels/hooks';
 import { channelReadStateByIdSelector } from './channels/selectors';
+import { canModerateMember } from './helpers';
+import { rolesSelector } from './roles/selectors';
 import {
   activeFullscreenPluginIdSelector,
   categoryHasUnreadMentionsSelector,
@@ -17,6 +19,9 @@ import {
   hasVisibleChannelsInCategorySelector,
   infoSelector,
   isOwnUserOwnerSelector,
+  memberListGroupsSelector,
+  memberListHiddenCountSelector,
+  mentionUnreadTotalSelector,
   ownUserRolesSelector,
   ownVoiceUserSelector,
   pluginsEnabledSelector,
@@ -25,10 +30,12 @@ import {
   serverNameSelector,
   typingUsersByChannelIdSelector,
   typingUsersByThreadIdSelector,
+  userRolesIdsSelector,
   userRolesSelector,
   voiceUsersByChannelIdSelector,
   webRtcSimulcastEnabledSelector
 } from './selectors';
+import { ownUserSelector } from './users/selectors';
 
 export const useIsConnected = () => useSelector(connectedSelector);
 
@@ -166,7 +173,36 @@ export const useHasUnreadMentions = (channelId: number) =>
     hasUnreadMentionsSelector(state, channelId)
   );
 
+export const useMentionUnreadTotal = () =>
+  useSelector(mentionUnreadTotalSelector);
+
 export const useActiveFullscreenPluginId = () =>
   useSelector(activeFullscreenPluginIdSelector);
 
 export const useDmsOpen = () => useSelector(dmsOpenSelector);
+
+export const useMemberListGroups = () => useSelector(memberListGroupsSelector);
+
+export const useMemberListHiddenCount = () =>
+  useSelector(memberListHiddenCountSelector);
+
+export const useCanModerateUser = (userId?: number) => {
+  const ownUser = useSelector(ownUserSelector);
+  const roles = useSelector(rolesSelector);
+  const targetRoleIds = useSelector((state: IRootState) =>
+    userId == null ? [] : userRolesIdsSelector(state, userId)
+  );
+
+  return useMemo(
+    () =>
+      userId != null &&
+      canModerateMember(
+        ownUser?.roleIds,
+        targetRoleIds,
+        roles,
+        ownUser?.id,
+        userId
+      ),
+    [ownUser, roles, targetRoleIds, userId]
+  );
+};

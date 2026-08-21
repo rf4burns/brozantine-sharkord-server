@@ -1,4 +1,4 @@
-import { getErrorMessage } from '@sharkord/shared';
+import { getErrorMessage } from '@kurier/shared';
 import { eq } from 'drizzle-orm';
 import fs from 'fs';
 import http from 'http';

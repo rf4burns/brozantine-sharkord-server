@@ -1,9 +1,4 @@
-import {
-  DELETED_USER_IDENTITY_AND_NAME,
-  OWNER_ROLE_ID,
-  Permission,
-  type TTempFile
-} from '@sharkord/shared';
+import { OWNER_ROLE_ID, Permission, type TTempFile } from '@kurier/shared';
 import { describe, expect, test } from 'bun:test';
 import { and, eq } from 'drizzle-orm';
 import { initTest, uploadFile } from '../../__tests__/helpers';
@@ -103,6 +98,147 @@ describe('users router', () => {
         userId: 1
       })
     ).rejects.toThrow('Insufficient permissions');
+  });
+
+  test('should allow kick without ban or delete permissions', async () => {
+    const [customRole] = await tdb
+      .insert(roles)
+      .values({
+        name: 'Kicker',
+        color: '#00aa00',
+        isPersistent: false,
+        isDefault: false,
+        position: 2,
+        hoist: false,
+        createdAt: Date.now()
+      })
+      .returning();
+
+    await tdb.insert(rolePermissions).values({
+      roleId: customRole!.id,
+      permission: Permission.KICK_MEMBERS,
+      createdAt: Date.now()
+    });
+
+    await tdb.insert(userRoles).values({
+      userId: 2,
+      roleId: customRole!.id,
+      createdAt: Date.now()
+    });
+
+    const { caller } = await initTest(2);
+
+    await expect(
+      caller.users.ban({
+        userId: 3,
+        reason: 'nope'
+      })
+    ).rejects.toThrow('Insufficient permissions');
+
+    await expect(
+      caller.users.delete({
+        userId: 3
+      })
+    ).rejects.toThrow('Insufficient permissions');
+
+    await expect(
+      caller.users.kick({
+        userId: 3,
+        reason: 'test'
+      })
+    ).rejects.toThrow('User is not connected');
+  });
+
+  test('should allow ban without kick or delete permissions', async () => {
+    const [customRole] = await tdb
+      .insert(roles)
+      .values({
+        name: 'Banner',
+        color: '#aa0000',
+        isPersistent: false,
+        isDefault: false,
+        position: 2,
+        hoist: false,
+        createdAt: Date.now()
+      })
+      .returning();
+
+    await tdb.insert(rolePermissions).values({
+      roleId: customRole!.id,
+      permission: Permission.BAN_MEMBERS,
+      createdAt: Date.now()
+    });
+
+    await tdb.insert(userRoles).values({
+      userId: 2,
+      roleId: customRole!.id,
+      createdAt: Date.now()
+    });
+
+    const { caller } = await initTest(2);
+
+    await caller.users.ban({
+      userId: 3,
+      reason: 'only ban'
+    });
+
+    const info = await caller.users.getInfo({ userId: 3 });
+    expect(info.user.banned).toBe(true);
+
+    await expect(
+      caller.users.delete({
+        userId: 3
+      })
+    ).rejects.toThrow('Insufficient permissions');
+  });
+
+  test('should allow delete without kick or ban permissions', async () => {
+    const [customRole] = await tdb
+      .insert(roles)
+      .values({
+        name: 'Deleter',
+        color: '#0000aa',
+        isPersistent: false,
+        isDefault: false,
+        position: 2,
+        hoist: false,
+        createdAt: Date.now()
+      })
+      .returning();
+
+    await tdb.insert(rolePermissions).values({
+      roleId: customRole!.id,
+      permission: Permission.DELETE_USERS,
+      createdAt: Date.now()
+    });
+
+    await tdb.insert(userRoles).values({
+      userId: 2,
+      roleId: customRole!.id,
+      createdAt: Date.now()
+    });
+
+    const { caller } = await initTest(2);
+
+    await expect(
+      caller.users.ban({
+        userId: 3,
+        reason: 'nope'
+      })
+    ).rejects.toThrow('Insufficient permissions');
+
+    await caller.users.delete({
+      userId: 3
+    });
+
+    const deletedUser = await tdb
+      .select({ id: users.id, deleted: users.deleted })
+      .from(users)
+      .where(eq(users.id, 3))
+      .get();
+
+    expect(deletedUser).toBeDefined();
+    expect(deletedUser!.deleted).toBe(true);
   });
 
   test('should get all users', async () => {
@@ -222,6 +358,8 @@ describe('users router', () => {
         color: '#00ff00',
         isPersistent: false,
         isDefault: false,
+        position: 2,
+        hoist: false,
         createdAt: Date.now()
       })
       .returning();
@@ -288,7 +426,15 @@ describe('users router', () => {
     await caller.users.update({
       name: 'Updated Name',
       profileColor: '#ff0000',
-      bio: 'This is my new bio'
+      bio: 'This is my new bio',
+      nickname: 'Nick',
+      pronouns: 'they/them',
+      statusMessage: 'coding',
+      preferences: {
+        theme: 'dark',
+        locale: 'en',
+        compactMode: true
+      }
     });
 
     const users = await caller.users.getAll();
@@ -298,6 +444,14 @@ describe('users router', () => {
     expect(updatedUser!.name).toBe('Updated Name');
     expect(updatedUser!.profileColor).toBe('#ff0000');
     expect(updatedUser!.bio).toBe('This is my new bio');
+    expect(updatedUser!.nickname).toBe('Nick');
+    expect(updatedUser!.pronouns).toBe('they/them');
+    expect(updatedUser!.statusMessage).toBe('coding');
+    expect(updatedUser!.preferences).toEqual({
+      theme: 'dark',
+      locale: 'en',
+      compactMode: true
+    });
   });
 
   test('should update user profile with null bio', async () => {
@@ -667,6 +821,7 @@ describe('users router', () => {
       name: 'Test Role',
       color: '#123456',
       permissions: [Permission.MANAGE_USERS],
+      hoist: false,
       storageQuotaOverrideEnabled: false,
       storageSpaceQuota: 0
     });
@@ -712,6 +867,7 @@ describe('users router', () => {
       name: 'Test Role',
       color: '#123456',
       permissions: [Permission.MANAGE_USERS],
+      hoist: false,
       storageQuotaOverrideEnabled: false,
       storageSpaceQuota: 0
     });
@@ -786,7 +942,7 @@ describe('users router', () => {
     ).rejects.toThrow('You cannot ban yourself');
   });
 
-  test('should delete a user', async () => {
+  test('should tombstone a user without removing their row', async () => {
     const { caller } = await initTest();
 
     await caller.users.delete({
@@ -794,12 +950,22 @@ describe('users router', () => {
     });
 
     const deletedUser = await tdb
-      .select({ id: users.id })
+      .select({
+        id: users.id,
+        deleted: users.deleted,
+        banned: users.banned,
+        name: users.name,
+        identity: users.identity
+      })
       .from(users)
       .where(eq(users.id, 2))
       .get();
 
-    expect(deletedUser).toBeUndefined();
+    expect(deletedUser).toBeDefined();
+    expect(deletedUser!.deleted).toBe(true);
+    expect(deletedUser!.banned).toBe(true);
+    expect(deletedUser!.identity).toBe('testuser');
+    expect(deletedUser!.name).not.toBe('__deleted_user__');
   });
 
   test('should throw when trying to delete yourself', async () => {
@@ -822,7 +988,21 @@ describe('users router', () => {
     ).rejects.toThrow('User not found.');
   });
 
-  test('should reassign user data to Deleted user when deleting without wipe', async () => {
+  test('should throw when trying to delete an already deleted user', async () => {
+    const { caller } = await initTest();
+
+    await caller.users.delete({
+      userId: 2
+    });
+
+    await expect(
+      caller.users.delete({
+        userId: 2
+      })
+    ).rejects.toThrow('User is already deleted.');
+  });
+
+  test('should keep message authorship when deleting without wipe', async () => {
     const { caller } = await initTest();
 
     const targetUserId = 2;
@@ -896,20 +1076,18 @@ describe('users router', () => {
     });
 
     const deletedUser = await tdb
-      .select({ id: users.id })
+      .select({
+        id: users.id,
+        deleted: users.deleted,
+        name: users.name
+      })
       .from(users)
       .where(eq(users.id, targetUserId))
       .get();
 
-    expect(deletedUser).toBeUndefined();
-
-    const deletedPlaceholderUser = await tdb
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.identity, DELETED_USER_IDENTITY_AND_NAME))
-      .get();
-
-    expect(deletedPlaceholderUser).toBeDefined();
+    expect(deletedUser).toBeDefined();
+    expect(deletedUser!.deleted).toBe(true);
+    expect(deletedUser!.name).not.toBe('__deleted_user__');
 
     const messageAfterDelete = await tdb
       .select()
@@ -918,7 +1096,7 @@ describe('users router', () => {
       .get();
 
     expect(messageAfterDelete).toBeDefined();
-    expect(messageAfterDelete!.userId).toBe(deletedPlaceholderUser!.id);
+    expect(messageAfterDelete!.userId).toBe(targetUserId);
 
     const emojiAfterDelete = await tdb
       .select({ userId: emojis.userId })
@@ -927,7 +1105,7 @@ describe('users router', () => {
       .get();
 
     expect(emojiAfterDelete).toBeDefined();
-    expect(emojiAfterDelete!.userId).toBe(deletedPlaceholderUser!.id);
+    expect(emojiAfterDelete!.userId).toBe(targetUserId);
 
     const emojiFileAfterDelete = await tdb
       .select({ userId: files.userId })
@@ -936,7 +1114,7 @@ describe('users router', () => {
       .get();
 
     expect(emojiFileAfterDelete).toBeDefined();
-    expect(emojiFileAfterDelete!.userId).toBe(deletedPlaceholderUser!.id);
+    expect(emojiFileAfterDelete!.userId).toBe(targetUserId);
 
     const reactionAfterDelete = await tdb
       .select({ userId: messageReactions.userId })
@@ -950,7 +1128,7 @@ describe('users router', () => {
       .get();
 
     expect(reactionAfterDelete).toBeDefined();
-    expect(reactionAfterDelete!.userId).toBe(deletedPlaceholderUser!.id);
+    expect(reactionAfterDelete!.userId).toBe(targetUserId);
   });
 
   test('should wipe all linked data when deleting user with wipe', async () => {
@@ -1056,12 +1234,13 @@ describe('users router', () => {
     });
 
     const deletedUser = await tdb
-      .select({ id: users.id })
+      .select({ id: users.id, deleted: users.deleted })
       .from(users)
       .where(eq(users.id, targetUserId))
       .get();
 
-    expect(deletedUser).toBeUndefined();
+    expect(deletedUser).toBeDefined();
+    expect(deletedUser!.deleted).toBe(true);
 
     const wipedMessage = await tdb
       .select({ id: messages.id })
@@ -1109,6 +1288,20 @@ describe('users router', () => {
 
     expect(wipedEmojiFile).toBeDefined();
     expect(wipedEmojiFile!.userId).toBe(targetUserId);
+  });
+
+  test('should throw when trying to unban a deleted user', async () => {
+    const { caller } = await initTest();
+
+    await caller.users.delete({
+      userId: 2
+    });
+
+    await expect(
+      caller.users.unban({
+        userId: 2
+      })
+    ).rejects.toThrow('Cannot unban a deleted user.');
   });
 
   test('should unban user', async () => {
@@ -1255,5 +1448,259 @@ describe('users router', () => {
 
     expect(userInfo.messages.length).toBe(0);
     expect(dbMessages.length).toBeGreaterThan(0);
+  });
+
+  test('should throw when user lacks MUTE_MEMBERS', async () => {
+    const { caller } = await initTest(2);
+
+    await expect(
+      caller.users.mute({
+        userId: 3,
+        muted: true
+      })
+    ).rejects.toThrow('Insufficient permissions');
+  });
+
+  test('should throw when user lacks DEAFEN_MEMBERS', async () => {
+    const { caller } = await initTest(2);
+
+    await expect(
+      caller.users.deafen({
+        userId: 3,
+        deafened: true
+      })
+    ).rejects.toThrow('Insufficient permissions');
+  });
+
+  test('should persist server mute and deafen flags', async () => {
+    const { caller } = await initTest();
+
+    await caller.users.mute({
+      userId: 2,
+      muted: true
+    });
+    await caller.users.deafen({
+      userId: 2,
+      deafened: true
+    });
+
+    const mutedInfo = await caller.users.getInfo({ userId: 2 });
+
+    expect(mutedInfo.user.serverMuted).toBe(true);
+    expect(mutedInfo.user.serverDeafened).toBe(true);
+
+    await caller.users.mute({
+      userId: 2,
+      muted: false
+    });
+    await caller.users.deafen({
+      userId: 2,
+      deafened: false
+    });
+
+    const unmutedInfo = await caller.users.getInfo({ userId: 2 });
+
+    expect(unmutedInfo.user.serverMuted).toBe(false);
+    expect(unmutedInfo.user.serverDeafened).toBe(false);
+  });
+
+  test('should not allow muting yourself', async () => {
+    const { caller } = await initTest();
+
+    await expect(
+      caller.users.mute({
+        userId: 1,
+        muted: true
+      })
+    ).rejects.toThrow('You cannot moderate yourself.');
+  });
+
+  test('should not allow muting a member with an equal or higher role', async () => {
+    await tdb.insert(rolePermissions).values({
+      roleId: 2,
+      permission: Permission.MUTE_MEMBERS,
+      createdAt: Date.now()
+    });
+
+    const { caller } = await initTest(2);
+
+    await expect(
+      caller.users.mute({
+        userId: 3,
+        muted: true
+      })
+    ).rejects.toThrow(
+      'You cannot moderate a member with an equal or higher role.'
+    );
+
+    await expect(
+      caller.users.mute({
+        userId: 1,
+        muted: true
+      })
+    ).rejects.toThrow(
+      'You cannot moderate a member with an equal or higher role.'
+    );
+  });
+
+  test('should not allow kicking a member with an equal or higher role', async () => {
+    await tdb.insert(rolePermissions).values({
+      roleId: 2,
+      permission: Permission.KICK_MEMBERS,
+      createdAt: Date.now()
+    });
+
+    const { caller } = await initTest(2);
+
+    await expect(
+      caller.users.kick({
+        userId: 3,
+        reason: 'test'
+      })
+    ).rejects.toThrow(
+      'You cannot moderate a member with an equal or higher role.'
+    );
+  });
+
+  test('should not allow banning a member with an equal or higher role', async () => {
+    await tdb.insert(rolePermissions).values({
+      roleId: 2,
+      permission: Permission.BAN_MEMBERS,
+      createdAt: Date.now()
+    });
+
+    const { caller } = await initTest(2);
+
+    await expect(
+      caller.users.ban({
+        userId: 3,
+        reason: 'test'
+      })
+    ).rejects.toThrow(
+      'You cannot moderate a member with an equal or higher role.'
+    );
+  });
+
+  test('should not allow assigning a role to a member with an equal or higher role', async () => {
+    const { caller: owner } = await initTest();
+    const roleId = await owner.roles.add();
+
+    await tdb.insert(rolePermissions).values({
+      roleId: 2,
+      permission: Permission.MANAGE_USERS,
+      createdAt: Date.now()
+    });
+
+    const { caller } = await initTest(2);
+
+    await expect(
+      caller.users.addRole({
+        userId: 3,
+        roleId
+      })
+    ).rejects.toThrow(
+      'You cannot moderate a member with an equal or higher role.'
+    );
+  });
+
+  test('should throw when muting a missing user', async () => {
+    const { caller } = await initTest();
+
+    await expect(
+      caller.users.mute({
+        userId: 999,
+        muted: true
+      })
+    ).rejects.toThrow('User not found.');
+  });
+
+  test('should throw when changing own nickname without CHANGE_NICKNAME', async () => {
+    await tdb
+      .delete(rolePermissions)
+      .where(
+        and(
+          eq(rolePermissions.roleId, 2),
+          eq(rolePermissions.permission, Permission.CHANGE_NICKNAME)
+        )
+      );
+
+    const { caller } = await initTest(2);
+
+    await expect(
+      caller.users.update({
+        name: 'Test User',
+        profileColor: '#262626',
+        nickname: 'Nick'
+      })
+    ).rejects.toThrow('Insufficient permissions');
+  });
+
+  test('should still update profile fields without CHANGE_NICKNAME when nickname is unchanged', async () => {
+    await tdb
+      .delete(rolePermissions)
+      .where(
+        and(
+          eq(rolePermissions.roleId, 2),
+          eq(rolePermissions.permission, Permission.CHANGE_NICKNAME)
+        )
+      );
+
+    const { caller } = await initTest(2);
+
+    await caller.users.update({
+      name: 'Renamed User',
+      profileColor: '#123456',
+      bio: 'still allowed'
+    });
+
+    const { caller: owner } = await initTest();
+    const info = await owner.users.getInfo({ userId: 2 });
+
+    expect(info.user.name).toBe('Renamed User');
+    expect(info.user.bio).toBe('still allowed');
+    expect(info.user.nickname).toBeNull();
+  });
+
+  test('should throw when updating another nickname without MANAGE_NICKNAMES', async () => {
+    const { caller } = await initTest(2);
+
+    await expect(
+      caller.users.updateNickname({
+        userId: 3,
+        nickname: 'Nope'
+      })
+    ).rejects.toThrow('Insufficient permissions');
+  });
+
+  test('should not allow updating a nickname for an equal or higher member', async () => {
+    await tdb.insert(rolePermissions).values({
+      roleId: 2,
+      permission: Permission.MANAGE_NICKNAMES,
+      createdAt: Date.now()
+    });
+
+    const { caller } = await initTest(2);
+
+    await expect(
+      caller.users.updateNickname({
+        userId: 3,
+        nickname: 'Nope'
+      })
+    ).rejects.toThrow(
+      'You cannot moderate a member with an equal or higher role.'
+    );
+  });
+
+  test('should update another member nickname', async () => {
+    const { caller } = await initTest();
+
+    await caller.users.updateNickname({
+      userId: 2,
+      nickname: 'MemberNick'
+    });
+
+    const info = await caller.users.getInfo({ userId: 2 });
+
+    expect(info.user.nickname).toBe('MemberNick');
   });
 });

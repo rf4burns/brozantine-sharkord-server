@@ -11,7 +11,7 @@ import {
   getTrpcError,
   type TExternalStream,
   type TVoiceUserState
-} from '@sharkord/shared';
+} from '@kurier/shared';
 import type { RtpCapabilities } from 'mediasoup-client/types';
 import { toast } from 'sonner';
 import {
@@ -31,17 +31,25 @@ import { ownVoiceStateSelector } from './selectors';
 export const addUserToVoiceChannel = (
   userId: number,
   channelId: number,
-  voiceState: TVoiceUserState
+  voiceState: TVoiceUserState,
+  joinedAt: number,
+  occupiedSince: number | null
 ): void => {
   const state = store.getState();
   const ownUserId = ownUserIdSelector(state);
   const currentChannelId = currentVoiceChannelIdSelector(state);
 
+  if (userId === ownUserId) {
+    store.dispatch(serverSliceActions.updateOwnVoiceState(voiceState));
+  }
+
   store.dispatch(
     serverSliceActions.addUserToVoiceChannel({
       userId,
       channelId,
-      state: voiceState
+      state: voiceState,
+      joinedAt,
+      occupiedSince
     })
   );
 
@@ -132,6 +140,10 @@ export const updateVoiceUserState = (
   store.dispatch(
     serverSliceActions.updateVoiceUserState({ userId, channelId, newState })
   );
+
+  if (userId === ownUserId) {
+    store.dispatch(serverSliceActions.updateOwnVoiceState(newState));
+  }
 };
 
 export const updateOwnVoiceState = (

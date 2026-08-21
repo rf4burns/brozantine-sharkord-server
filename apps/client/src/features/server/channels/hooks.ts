@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import {
   channelByIdSelector,
   channelIdsSelector,
+  channelNotificationLevelByIdSelector,
   channelPermissionsByIdSelector,
   channelsByCategoryIdSelector,
   channelsMapSelector,
@@ -20,6 +21,11 @@ export const useChannels = () =>
 
 export const useChannelById = (channelId: number) =>
   useSelector((state: IRootState) => channelByIdSelector(state, channelId));
+
+export const useChannelNotificationLevel = (channelId: number) =>
+  useSelector((state: IRootState) =>
+    channelNotificationLevelByIdSelector(state, channelId)
+  );
 
 export const useChannelsByCategoryId = (categoryId: number) =>
   useSelector((state: IRootState) =>

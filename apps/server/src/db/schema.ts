@@ -1,8 +1,10 @@
 import {
   DEFAULT_PROFILE_COLOR,
   type TActivityLogDetailsMap,
-  type TMessageMetadata
-} from '@sharkord/shared';
+  type TChannelNotificationLevel,
+  type TMessageMetadata,
+  type TUserPreferences
+} from '@kurier/shared';
 import {
   index,
   integer,
@@ -119,6 +121,8 @@ const roles = sqliteTable(
     color: text('color').notNull().default('#ffffff'),
     isPersistent: integer('is_persistent', { mode: 'boolean' }).notNull(),
     isDefault: integer('is_default', { mode: 'boolean' }).notNull(),
+    position: integer('position').notNull().default(0),
+    hoist: integer('hoist', { mode: 'boolean' }).notNull().default(false),
     storageQuotaOverrideEnabled: integer('storage_quota_override_enabled', {
       mode: 'boolean'
     })
@@ -130,7 +134,8 @@ const roles = sqliteTable(
   },
   (t) => [
     index('roles_is_default_idx').on(t.isDefault),
-    index('roles_is_persistent_idx').on(t.isPersistent)
+    index('roles_is_persistent_idx').on(t.isPersistent),
+    index('roles_position_idx').on(t.position)
   ]
 );
 
@@ -186,9 +191,23 @@ const users = sqliteTable(
       onDelete: 'set null'
     }),
     bio: text('bio'),
+    nickname: text('nickname'),
+    pronouns: text('pronouns'),
+    statusMessage: text('status_message'),
+    preferences: text('preferences', {
+      mode: 'json'
+    }).$type<TUserPreferences>(),
     banned: integer('banned', { mode: 'boolean' }).notNull().default(false),
     banReason: text('ban_reason'),
     bannedAt: integer('banned_at'),
+    deleted: integer('deleted', { mode: 'boolean' }).notNull().default(false),
+    deletedAt: integer('deleted_at'),
+    serverMuted: integer('server_muted', { mode: 'boolean' })
+      .notNull()
+      .default(false),
+    serverDeafened: integer('server_deafened', { mode: 'boolean' })
+      .notNull()
+      .default(false),
     // a banner image, when set, always renders on top of this
     profileColor: text('profile_color')
       .notNull()
@@ -203,6 +222,7 @@ const users = sqliteTable(
     uniqueIndex('users_identity_idx').on(t.identity),
     index('users_name_idx').on(t.name),
     index('users_banned_idx').on(t.banned),
+    index('users_deleted_idx').on(t.deleted),
     index('users_last_login_idx').on(t.lastLoginAt)
   ]
 );
@@ -402,9 +422,9 @@ const activityLog = sqliteTable(
   'activity_log',
   {
     id: integer('id').primaryKey({ autoIncrement: true }),
-    userId: integer('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
+    userId: integer('user_id').references(() => users.id, {
+      onDelete: 'set null'
+    }),
     type: text('type').notNull(),
     details: text('details', { mode: 'json' }).$type<
       TActivityLogDetailsMap[keyof TActivityLogDetailsMap]
@@ -498,6 +518,25 @@ const channelReadStates = sqliteTable(
   ]
 );
 
+const channelNotificationOverrides = sqliteTable(
+  'channel_notification_overrides',
+  {
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    channelId: integer('channel_id')
+      .notNull()
+      .references(() => channels.id, { onDelete: 'cascade' }),
+    level: text('level').notNull().$type<TChannelNotificationLevel>(),
+    updatedAt: integer('updated_at').notNull()
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.channelId] }),
+    index('channel_notification_overrides_user_idx').on(t.userId),
+    index('channel_notification_overrides_channel_idx').on(t.channelId)
+  ]
+);
+
 const directMessages = sqliteTable(
   'direct_messages',
   {
@@ -532,6 +571,7 @@ const pluginData = sqliteTable('plugin_data', {
 export {
   activityLog,
   categories,
+  channelNotificationOverrides,
   channelReadStates,
   channelRolePermissions,
   channels,

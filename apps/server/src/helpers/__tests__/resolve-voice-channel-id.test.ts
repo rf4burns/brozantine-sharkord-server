@@ -2,8 +2,8 @@ import { ServerEvents, StreamKind } from '@kurier/shared';
 import { describe, expect, test } from 'bun:test';
 import { initTest } from '../../__tests__/helpers';
 import { VoiceRuntime } from '../../runtimes/voice';
-import type { Context } from '../../utils/trpc';
 import { pubsub } from '../../utils/pubsub';
+import type { Context } from '../../utils/trpc';
 import { resolveVoiceChannelId } from '../resolve-voice-channel-id';
 
 describe('resolveVoiceChannelId', () => {

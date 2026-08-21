@@ -15,9 +15,7 @@ type TEvents = {
     kind: StreamKind,
     rtpCapabilities: RtpCapabilities
   ) => Promise<void>;
-  consumeExistingProducers: (
-    rtpCapabilities: RtpCapabilities
-  ) => Promise<void>;
+  consumeExistingProducers: (rtpCapabilities: RtpCapabilities) => Promise<void>;
   removeRemoteUserStream: (
     userId: number,
     kind: TRemoteUserStreamKinds

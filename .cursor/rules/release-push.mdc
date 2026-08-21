@@ -1,0 +1,16 @@
+---
+description: When shipping updates, push to development, bump version, and write changelog notes
+alwaysApply: true
+---
+
+# Shipping updates (Kurier / brozantine fork)
+
+When the user asks to push, ship, release, or publish updates:
+
+1. **Target branch:** always push to `origin/development` (this repo's default). Do not push to `main` unless they explicitly ask.
+2. **Version bump:** bump the monorepo version in all workspace `package.json` files (root, `apps/*`, `packages/*` that share the app version). Default to **patch** unless they specify minor/major. Prefer the existing helper: from `apps/server`, `bun ./build/set-version.ts --version <x.y.z>` or the build `--bump` path. Keep every bumped package on the same version.
+3. **Changelog:** add notes under [`CHANGELOG.md`](CHANGELOG.md) for that version (Keep a Changelog style: Added / Changed / Fixed). Write concrete user-facing notes, not a file list. If shipping a GitHub release, reuse those notes in the release body.
+4. **Commit + push:** commit version bump and changelog with the feature work (or as a clear follow-up commit), then `git push -u origin HEAD` when on `development`.
+5. **Do not** run Manual Release / Docker publish unless they explicitly ask for a full release.
+
+Ask before force-pushing or rewriting tags.

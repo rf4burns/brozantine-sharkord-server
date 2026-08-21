@@ -12,12 +12,13 @@ import { getTRPCClient } from '@/lib/trpc';
 import {
   getTrpcError,
   isDeletedUser,
+  OWNER_ROLE_ID,
   Permission,
   UserStatus
 } from '@kurier/shared';
 import { Button, Input } from '@kurier/ui';
 import { Gavel, Plus, Trash, UserMinus } from 'lucide-react';
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Dialog } from '../dialogs/dialogs';
@@ -33,6 +34,10 @@ const Header = memo(() => {
   const userRoles = useUserRoles(user.id);
   const isDeletedUserAccount = isDeletedUser(user);
   const isOwnUser = user.id === ownUserId;
+  const isOwnerAccount = useMemo(
+    () => userRoles.some((role) => role.id === OWNER_ROLE_ID),
+    [userRoles]
+  );
   const canModerate = useCanModerateUser(user.id);
   const [nickname, setNickname] = useState(user.nickname ?? '');
 
@@ -228,7 +233,7 @@ const Header = memo(() => {
                 onDelete: () => setModViewOpen(false)
               })
             }
-            disabled={isOwnUser || isDeletedUserAccount}
+            disabled={isOwnUser || isDeletedUserAccount || isOwnerAccount}
           >
             <Trash className="h-4 w-4" />
             {t('deleteBtn')}

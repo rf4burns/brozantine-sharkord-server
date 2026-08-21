@@ -1,48 +1,84 @@
-<div align="center">
-  <h1>Sharkord</h1>
-  <p><strong>A lightweight, self-hosted real-time communication platform</strong></p>
-  
-  [![Version](https://img.shields.io/github/v/release/Sharkord/sharkord)](https://github.com/Sharkord/sharkord/releases)
-  [![License](https://img.shields.io/github/license/Sharkord/sharkord)](LICENSE)
-  [![Downloads](https://img.shields.io/github/downloads/Sharkord/sharkord/total)](https://github.com/Sharkord/sharkord/releases)
-  [![Last Commit](https://img.shields.io/github/last-commit/Sharkord/sharkord)](https://github.com/Sharkord/sharkord/commits)
-  
-  [![Bun](https://img.shields.io/badge/Bun-v1.3.14-green.svg)](https://bun.sh)
-  [![Mediasoup](https://img.shields.io/badge/Mediasoup-v3.19.19-green.svg)](https://mediasoup.org)
-</div>
+# Brozantine Sharkord Server
 
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/B0B71U3476)
+Private [Sharkord](https://github.com/Sharkord/sharkord) fork that runs Brozantine's self-hosted chat: text, voice, video, and screen share on your own box.
 
-## What is Sharkord?
+**Live:** [https://sharkord.brozantine.com](https://sharkord.brozantine.com)
+
+This repo is the Bun monorepo: server (tRPC, SQLite, mediasoup) plus the React web client. It is not the Flutter apps.
+
+| Client | Repo |
+| --- | --- |
+| Flutter web SPA | [rf4burns/brozantine-sharkord-frontend](https://github.com/rf4burns/brozantine-sharkord-frontend) |
+| Native Windows desktop | [KillerAuzzie/Sharkord-native-source](https://github.com/KillerAuzzie/Sharkord-native-source) |
 
 > [!NOTE]
-> Sharkord is in alpha stage. Bugs, incomplete features and breaking changes are to be expected.
+> Sharkord is still in alpha. Bugs, incomplete features, and breaking changes are expected.
 
-Sharkord is a self-hosted communication platform that brings the most important Discord-like features to your own infrastructure. Voice, video, and screen sharing without the bloat or surveillance.
+## What it is
 
-## Docs
+Sharkord is a self-hosted communication platform for small groups. Think TeamSpeak: focused, lightweight, easy to run, no paywalls. It is not a Discord clone and is not aimed at huge communities.
 
-For detailed documentation, please visit our [Documentation](https://sharkord.com/docs).
+Upstream docs: [sharkord.com/docs](https://sharkord.com/docs).
 
-## Wanna Try It Out?
+This Brozantine fork keeps that core and adds host-specific client work used on `sharkord.brozantine.com` (saved-host rail, KLIPY GIFs on Brozantine hosts, music-bot controls, YouTube resolve, and other native-parity UI).
 
-Check out the Live Demo at [demo.sharkord.com](https://demo.sharkord.com).
+## Architecture
 
-## Getting Started
+Bun workspaces. `bun install` at the root, then `./start.sh` (tmux) or `bun dev` in each app.
 
-Sharkord is distributed as a standalone binary that bundles both server and client components. Get started by downloading the latest release for your platform from the [Releases](https://github.com/Sharkord/sharkord/releases) page. We ship binaries for Windows, macOS, and Linux.
+| Workspace | Role |
+| --- | --- |
+| `apps/server` | Bun + tRPC + Drizzle (SQLite) + mediasoup (voice SFU) |
+| `apps/client` | React + Vite + Redux Toolkit + Tailwind |
+| `packages/shared` | Types, enums, and helpers used by both sides |
+| `packages/ui` | Presentational components only |
+| `packages/plugin-sdk` | Public API for plugins |
+| `packages/e2e` | Playwright tests |
 
-#### Linux x64
+Client and server talk over **tRPC** (queries, mutations, WebSocket subscriptions). Login, uploads, static files, health, and plugin bundles live under `apps/server/src/http`.
+
+Runtime state (voice rooms, mediasoup transports) stays in memory. Anything persistent goes through SQLite.
+
+## Requirements
+
+- [Bun](https://bun.sh/) (this repo pins `1.3.14`)
+- [Tmux](https://github.com/tmux/tmux) (optional, for `./start.sh`)
+
+## Development
+
+1. Clone this repository.
+2. Run `bun install` at the repo root.
+3. Start the app:
+   - With tmux: `./start.sh`
+   - Without tmux: `bun dev` in `apps/client` and in `apps/server`
+
+The React client is proxied against the server on **port 4991**. Voice/WebRTC uses **port 40000** (TCP and UDP).
+
+Dev data (database and uploads) lives in `apps/server/data`. Delete that folder for a clean reset.
+
+On first launch the server prints an owner bootstrap token. Anyone with that token can take owner. Store it; do not share it.
+
+## Tests
 
 ```bash
-curl -L https://github.com/sharkord/sharkord/releases/latest/download/sharkord-linux-x64 -o sharkord
-chmod +x sharkord
-./sharkord
+bun run test
 ```
 
-#### Docker
+Use `bun run test`, not bare `bun test` at the root.
 
-Sharkord can also be run using Docker. Here's how to run it:
+Before finishing a change:
+
+```bash
+bun run magic
+```
+
+That runs format, typecheck, and lint.
+
+## Production
+
+Stock Sharkord also ships a standalone binary and Docker image. For a vanilla binary, see [upstream releases](https://github.com/Sharkord/sharkord/releases).
+
+Docker (upstream image):
 
 ```bash
 docker run \
@@ -54,39 +90,14 @@ docker run \
   sharkord/sharkord:latest
 ```
 
-> [!NOTE]
-> Upon first launch, Sharkord will create a secure token and print it to the console. This token allows ANYONE to gain owner access to your server, so make sure to store it securely and do not lose it!
+Then open [http://localhost:4991](http://localhost:4991). Put HTTPS in front of it in production (Caddy/nginx). Browsers block mic/camera on plain HTTP except localhost.
 
-Once the server is running, open your web browser and navigate to [http://localhost:4991](http://localhost:4991) to access the Sharkord client interface. If you're running the server on a different machine, replace `localhost` with the server's IP address or domain name.
-
-Check out our [Documentation](https://sharkord.com/docs) for more detailed setup instructions, configuration options, and troubleshooting tips.
+Brozantine production is `sharkord.brozantine.com`. The Flutter web client is served in front of this process; stock Sharkord UI can still sit at `/vanilla/` on the same host.
 
 ## Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+This GitHub repo is Brozantine's private fork. Upstream Sharkord contribution rules are in [CONTRIBUTING.md](CONTRIBUTING.md) (issue first, PRs to `development`, CI must pass).
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-Built with amazing open-source technologies:
-
-- [Bun](https://bun.sh)
-- [tRPC](https://trpc.io)
-- [Mediasoup](https://mediasoup.org)
-- [Drizzle ORM](https://orm.drizzle.team)
-- [React](https://react.dev)
-- [Radix UI](https://www.radix-ui.com)
-- [ShadCN UI](https://ui.shadcn.com/)
-- [Tailwind CSS](https://tailwindcss.com)
-
-<div align="center">
-  <p>Made with ❤️ by the Sharkord team</p>
-  <p>
-    <a href="https://github.com/Sharkord/sharkord">GitHub</a> •
-    <a href="https://github.com/Sharkord/sharkord/issues">Issues</a> •
-    <a href="https://github.com/Sharkord/sharkord/discussions">Discussions</a>
-  </p>
-</div>
+MIT. See [LICENSE](LICENSE). Copyright remains with the Sharkord team for upstream code.

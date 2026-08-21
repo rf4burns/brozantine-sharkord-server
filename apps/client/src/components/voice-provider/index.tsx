@@ -35,6 +35,7 @@ import {
 import {
   DEFAULT_BITRATE,
   StreamKind,
+  getTrpcError,
   type ConsumerType,
   type TStreamQualityLayer,
   type TVoiceUserState
@@ -54,6 +55,7 @@ import {
   useRef,
   useState
 } from 'react';
+import { toast } from 'sonner';
 import { useAudioLevel } from '../channel-view/voice/hooks/use-audio-level';
 import { useDevices } from '../devices-provider/hooks/use-devices';
 import {
@@ -764,6 +766,7 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
       cleanupMicProcessingResources();
       setLocalAudioStream(undefined);
       logVoice('Error starting microphone stream', { error });
+      toast.error(getTrpcError(error, 'Failed to start microphone'));
     }
   }, [
     cleanupMicProcessingResources,

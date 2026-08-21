@@ -159,8 +159,12 @@ const buildMemberListGroups = (
 ): TMemberListGroup[] => {
   const visibleUsers = users.filter((user) => !isDeletedUser(user));
 
+  // owner is never a member-list group; use the next highest hoisted role
   const hoistedRoles = [...roles]
-    .filter((role) => role.hoist && !role.isDefault)
+    .filter(
+      (role) =>
+        role.hoist && !role.isDefault && role.id !== OWNER_ROLE_ID
+    )
     .sort((a, b) => b.position - a.position || a.id - b.id);
 
   const getHighestHoistedRole = (user: TJoinedPublicUser) => {

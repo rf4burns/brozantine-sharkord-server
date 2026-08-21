@@ -149,7 +149,22 @@ export const updateVoiceUserState = (
 export const updateOwnVoiceState = (
   newState: Partial<TVoiceUserState>
 ): void => {
+  const state = store.getState();
+  const ownUserId = ownUserIdSelector(state);
+  const currentChannelId = currentVoiceChannelIdSelector(state);
+
   store.dispatch(serverSliceActions.updateOwnVoiceState(newState));
+
+  // keep sidebar / voice-card icons in sync with the control bar
+  if (ownUserId !== undefined && currentChannelId !== undefined) {
+    store.dispatch(
+      serverSliceActions.updateVoiceUserState({
+        userId: ownUserId,
+        channelId: currentChannelId,
+        newState
+      })
+    );
+  }
 };
 
 export const joinVoice = async (

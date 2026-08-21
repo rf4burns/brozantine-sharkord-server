@@ -2,7 +2,10 @@ import { useDevices } from '@/components/devices-provider/hooks/use-devices';
 import { useVolumeControl } from '@/components/voice-provider/volume-control-context';
 import { useIsOwnUser } from '@/features/server/users/hooks';
 import { useVoice } from '@/features/server/voice/hooks';
-import { applyAudioOutputDevice } from '@/helpers/audio-output';
+import {
+  applyAudioOutputDevice,
+  ensureAudioElementPlaying
+} from '@/helpers/audio-output';
 import { StreamKind } from '@kurier/shared';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useAudioLevel } from './use-audio-level';
@@ -116,6 +119,30 @@ const useVoiceRefs = (
     [attenuationFactor]
   );
 
+  const syncPlaybackElement = useCallback(
+    async (
+      element: HTMLAudioElement | null,
+      stream: MediaStream | undefined,
+      volume: number
+    ) => {
+      if (!element || !stream) return;
+
+      if (element.srcObject !== stream) {
+        element.srcObject = stream;
+      }
+
+      element.volume = playbackVolume(volume);
+      element.muted = ownVoiceState.soundMuted;
+
+      await applyAudioOutputDevice(element, devices.playbackId);
+
+      if (!ownVoiceState.soundMuted) {
+        await ensureAudioElementPlaying(element);
+      }
+    },
+    [devices.playbackId, ownVoiceState.soundMuted, playbackVolume]
+  );
+
   useEffect(() => {
     if (!videoStream || !videoRef.current) return;
 
@@ -123,43 +150,20 @@ const useVoiceRefs = (
   }, [videoStream, videoRef]);
 
   useEffect(() => {
-    if (!audioStream || !audioRef.current) return;
-
-    if (audioRef.current.srcObject !== audioStream) {
-      audioRef.current.srcObject = audioStream;
-    }
-
-    audioRef.current.volume = playbackVolume(userVolume);
-    audioRef.current.muted = ownVoiceState.soundMuted;
-
-    applyAudioOutputDevice(audioRef.current, devices.playbackId);
-  }, [
-    audioStream,
-    audioRef,
-    userVolume,
-    playbackVolume,
-    devices.playbackId,
-    ownVoiceState.soundMuted
-  ]);
+    void syncPlaybackElement(audioRef.current, audioStream, userVolume);
+  }, [audioRef, audioStream, syncPlaybackElement, userVolume]);
 
   useEffect(() => {
-    if (!screenShareAudioStream || !screenShareAudioRef.current) return;
-
-    if (screenShareAudioRef.current.srcObject !== screenShareAudioStream) {
-      screenShareAudioRef.current.srcObject = screenShareAudioStream;
-    }
-
-    screenShareAudioRef.current.volume = playbackVolume(userScreenVolume);
-    screenShareAudioRef.current.muted = ownVoiceState.soundMuted;
-
-    applyAudioOutputDevice(screenShareAudioRef.current, devices.playbackId);
+    void syncPlaybackElement(
+      screenShareAudioRef.current,
+      screenShareAudioStream,
+      userScreenVolume
+    );
   }, [
-    screenShareAudioStream,
     screenShareAudioRef,
-    userScreenVolume,
-    playbackVolume,
-    devices.playbackId,
-    ownVoiceState.soundMuted
+    screenShareAudioStream,
+    syncPlaybackElement,
+    userScreenVolume
   ]);
 
   useEffect(() => {
@@ -171,23 +175,16 @@ const useVoiceRefs = (
   }, [screenShareStream, screenShareRef]);
 
   useEffect(() => {
-    if (!externalAudioStream || !externalAudioRef.current) return;
-
-    if (externalAudioRef.current.srcObject !== externalAudioStream) {
-      externalAudioRef.current.srcObject = externalAudioStream;
-    }
-
-    externalAudioRef.current.volume = playbackVolume(externalVolume);
-    externalAudioRef.current.muted = ownVoiceState.soundMuted;
-
-    applyAudioOutputDevice(externalAudioRef.current, devices.playbackId);
+    void syncPlaybackElement(
+      externalAudioRef.current,
+      externalAudioStream,
+      externalVolume
+    );
   }, [
-    externalAudioStream,
     externalAudioRef,
+    externalAudioStream,
     externalVolume,
-    playbackVolume,
-    devices.playbackId,
-    ownVoiceState.soundMuted
+    syncPlaybackElement
   ]);
 
   useEffect(() => {
@@ -199,17 +196,19 @@ const useVoiceRefs = (
   }, [externalVideoStream, externalVideoRef]);
 
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.muted = ownVoiceState.soundMuted;
-    }
+    const syncMute = async (element: HTMLAudioElement | null) => {
+      if (!element) return;
 
-    if (screenShareAudioRef.current) {
-      screenShareAudioRef.current.muted = ownVoiceState.soundMuted;
-    }
+      element.muted = ownVoiceState.soundMuted;
 
-    if (externalAudioRef.current) {
-      externalAudioRef.current.muted = ownVoiceState.soundMuted;
-    }
+      if (!ownVoiceState.soundMuted) {
+        await ensureAudioElementPlaying(element);
+      }
+    };
+
+    void syncMute(audioRef.current);
+    void syncMute(screenShareAudioRef.current);
+    void syncMute(externalAudioRef.current);
   }, [
     ownVoiceState.soundMuted,
     audioRef,

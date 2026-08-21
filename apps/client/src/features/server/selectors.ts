@@ -187,7 +187,7 @@ export const typingUsersByThreadIdSelector = createCachedSelector(
   }
 )((_, parentMessageId: number) => `thread-${parentMessageId}`);
 
-export const voiceUsersByChannelIdSelector = createSelector(
+export const voiceUsersByChannelIdSelector = createCachedSelector(
   [usersSelector, voiceChannelStateSelector],
   (users, voiceState) => {
     const voiceUsers: TVoiceUser[] = [];
@@ -211,7 +211,7 @@ export const voiceUsersByChannelIdSelector = createSelector(
 
     return voiceUsers;
   }
-);
+)((_state: IRootState, channelId: number) => channelId);
 
 export const ownVoiceUserSelector = createSelector(
   [

@@ -1,12 +1,13 @@
-import { useCurrentVoiceChannelId } from '@/features/server/channels/hooks';
-import { playSound } from '@/features/server/sounds/actions';
-import { SoundType } from '@/features/server/types';
 import { updateOwnVoiceState } from '@/features/server/voice/actions';
 import { useOwnVoiceState } from '@/features/server/voice/hooks';
 import { getTRPCClient } from '@/lib/trpc';
 import { getTrpcError } from '@kurier/shared';
 import { useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { playSound } from '@/features/server/sounds/actions';
+import { SoundType } from '@/features/server/types';
+import { useCurrentVoiceChannelId } from '@/features/server/channels/hooks';
 
 type TPendingMicRestoreState = {
   previousMicMuted: boolean;
@@ -39,6 +40,7 @@ const useVoiceControls = ({
   startScreenShareStream,
   stopScreenShareStream
 }: TUseVoiceControlsParams) => {
+  const { t } = useTranslation('sidebar');
   const ownVoiceState = useOwnVoiceState();
   const currentVoiceChannelId = useCurrentVoiceChannelId();
 
@@ -55,10 +57,16 @@ const useVoiceControls = ({
     const nextMicMuted = !ownVoiceState.micMuted;
 
     if (ownVoiceState.serverMuted || ownVoiceState.serverDeafened) {
+      toast.error(
+        ownVoiceState.serverDeafened
+          ? t('cannotUnmuteServerDeafened')
+          : t('cannotUnmuteServerMuted')
+      );
       return;
     }
 
     if (ownVoiceState.soundMuted && !nextMicMuted) {
+      toast.error(t('cannotUnmuteWhileDeafened'));
       return;
     }
 
@@ -107,7 +115,8 @@ const useVoiceControls = ({
     ownVoiceState.serverDeafened,
     startMicStream,
     currentVoiceChannelId,
-    localAudioStream
+    localAudioStream,
+    t
   ]);
 
   const toggleSound = useCallback(async () => {
@@ -116,6 +125,7 @@ const useVoiceControls = ({
     const nextSoundMuted = !ownVoiceState.soundMuted;
 
     if (ownVoiceState.serverDeafened && !nextSoundMuted) {
+      toast.error(t('cannotUndeafenServerDeafened'));
       return;
     }
 
@@ -188,7 +198,8 @@ const useVoiceControls = ({
     ownVoiceState.serverDeafened,
     currentVoiceChannelId,
     localAudioStream,
-    startMicStream
+    startMicStream,
+    t
   ]);
 
   const toggleWebcam = useCallback(async () => {

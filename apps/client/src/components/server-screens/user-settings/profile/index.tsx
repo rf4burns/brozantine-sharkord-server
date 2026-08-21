@@ -71,27 +71,32 @@ const Profile = memo(() => {
       <CardContent className="space-y-4">
         <div className="flex items-start gap-6">
           <div className="min-w-0 flex-1 space-y-4">
-            <div className="flex items-start gap-4">
+            <div className="flex flex-wrap items-start gap-4">
               <AvatarManager user={ownPublicUser} />
-
               <BannerManager user={ownPublicUser} />
-
-              <Group label={t('profileColorLabel')}>
-                <ColorPicker
-                  value={values.profileColor}
-                  onChange={handleColorChange}
-                  defaultValue={DEFAULT_PROFILE_COLOR}
-                />
-                <ImageSwatchPicker
-                  src={userAvatarUrl}
-                  onChange={handleColorChange}
-                />
-                <ImageSwatchPicker
-                  src={userBannerUrl}
-                  onChange={handleColorChange}
-                />
-              </Group>
             </div>
+
+            <Group label={t('profileColorLabel')}>
+              <div className="flex flex-wrap items-start gap-3">
+                <div className="w-32 shrink-0">
+                  <ColorPicker
+                    value={values.profileColor}
+                    onChange={handleColorChange}
+                    defaultValue={DEFAULT_PROFILE_COLOR}
+                  />
+                </div>
+                <div className="flex min-w-0 flex-col gap-2">
+                  <ImageSwatchPicker
+                    src={userAvatarUrl}
+                    onChange={handleColorChange}
+                  />
+                  <ImageSwatchPicker
+                    src={userBannerUrl}
+                    onChange={handleColorChange}
+                  />
+                </div>
+              </div>
+            </Group>
 
             <Group label={t('usernameLabel')}>
               <Input placeholder={t('usernamePlaceholder')} {...r('name')} />

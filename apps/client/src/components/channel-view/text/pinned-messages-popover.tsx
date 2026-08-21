@@ -1,5 +1,4 @@
 import { RelativeTime } from '@/components/relative-time';
-import { useSelectedChannelId } from '@/features/server/channels/hooks';
 import { useUserById } from '@/features/server/users/hooks';
 import { getTRPCClient } from '@/lib/trpc';
 import { getTrpcError, type TJoinedMessage } from '@kurier/shared';
@@ -77,16 +76,16 @@ const PinnedMessageGroupWrapper = memo(
 );
 
 type TPinnedMessagesPopoverProps = {
+  channelId: number;
   onScrollToMessage: (messageId: number) => Promise<void>;
 };
 
 const PinnedMessagesPopover = memo(
-  ({ onScrollToMessage }: TPinnedMessagesPopoverProps) => {
+  ({ channelId, onScrollToMessage }: TPinnedMessagesPopoverProps) => {
     const { t } = useTranslation();
     const [isOpen, setIsOpen] = useState(false);
     const [pinnedMessages, setPinnedMessages] = useState<TJoinedMessage[]>([]);
     const [loading, setLoading] = useState(false);
-    const selectedChannelId = useSelectedChannelId();
 
     const togglePinnedMessages = useCallback(() => {
       setIsOpen((prev) => !prev);
@@ -101,7 +100,7 @@ const PinnedMessagesPopover = memo(
     );
 
     useEffect(() => {
-      if (!isOpen || !selectedChannelId) return;
+      if (!isOpen || !channelId) return;
 
       let isCancelled = false;
 
@@ -112,7 +111,7 @@ const PinnedMessagesPopover = memo(
 
         try {
           const messages = await trpc.messages.getPinned.query({
-            channelId: selectedChannelId
+            channelId
           });
 
           if (!isCancelled) {
@@ -134,17 +133,22 @@ const PinnedMessagesPopover = memo(
       return () => {
         isCancelled = true;
       };
-    }, [isOpen, selectedChannelId, t]);
+    }, [isOpen, channelId, t]);
 
     return (
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
-          <IconButton
-            icon={Pin}
-            size="sm"
-            variant="ghost"
-            onClick={togglePinnedMessages}
-          />
+          <div>
+            <Tooltip content={t('pinnedMessagesTitle')}>
+              <IconButton
+                icon={Pin}
+                size="sm"
+                variant="ghost"
+                className="h-8 w-8"
+                onClick={togglePinnedMessages}
+              />
+            </Tooltip>
+          </div>
         </PopoverTrigger>
         <PopoverContent
           align="end"

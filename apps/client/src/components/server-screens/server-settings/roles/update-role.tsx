@@ -180,7 +180,7 @@ const UpdateRole = memo(
             <Switch
               id="role-hoist"
               checked={!!values.hoist}
-              disabled={selectedRole.isDefault}
+              disabled={selectedRole.isDefault || isOwnerRole}
               onCheckedChange={(checked) => onChange('hoist', checked)}
             />
           </div>

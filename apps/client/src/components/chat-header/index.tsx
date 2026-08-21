@@ -24,7 +24,7 @@ const ChatHeader = memo(
 
     return (
       <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-border bg-background px-4">
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           {isDmMode || channel?.isDm ? (
             <MessageCircleMore className="h-5 w-5 shrink-0 text-muted-foreground" />
           ) : channel?.type === ChannelType.VOICE ? (
@@ -34,13 +34,13 @@ const ChatHeader = memo(
           )}
           {channel && (
             <>
-              <span className="truncate text-base font-semibold">
+              <span className="shrink-0 truncate text-base font-semibold">
                 {channel.isDm ? t('directMessageHeader') : channel.name}
               </span>
               {channel.topic && (
                 <>
-                  <span className="hidden h-4 w-px bg-border sm:block" />
-                  <span className="hidden truncate text-sm text-muted-foreground sm:inline">
+                  <span className="hidden h-4 w-px shrink-0 bg-border sm:block" />
+                  <span className="hidden min-w-0 truncate text-sm text-muted-foreground sm:inline">
                     {channel.topic}
                   </span>
                 </>

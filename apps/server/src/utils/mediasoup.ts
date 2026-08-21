@@ -1,6 +1,6 @@
 import { getErrorMessage } from '@kurier/shared';
 import mediasoup from 'mediasoup';
-import { config, SERVER_PUBLIC_IP } from '../config.js';
+import { config, SERVER_PRIVATE_IP, SERVER_PUBLIC_IP } from '../config.js';
 import { MEDIASOUP_BINARY_PATH } from '../helpers/paths.js';
 import { logger } from '../logger.js';
 import {
@@ -47,7 +47,14 @@ const loadMediasoup = async () => {
   logger.debug('Mediasoup worker loaded');
 
   if (IS_PRODUCTION) {
-    const announcedAddress = config.webRtc.announcedAddress || SERVER_PUBLIC_IP;
+    const announcedAddress =
+      config.webRtc.announcedAddress || SERVER_PUBLIC_IP || undefined;
+
+    if (!announcedAddress) {
+      logger.warn(
+        'WebRTC announcedAddress is empty; remote voice clients may connect but hear nothing. Set [webRtc] announcedAddress in config.ini to this server public IP or hostname.'
+      );
+    }
 
     webRtcServer = await mediaSoupWorker.createWebRtcServer({
       listenInfos: [
@@ -62,16 +69,22 @@ const loadMediasoup = async () => {
       `WebRtcServer created on port ${port} with announcedAddress ${announcedAddress}`
     );
   } else {
+    // bind all interfaces in dev so LAN clients can exchange media, not only localhost
+    const announcedAddress =
+      config.webRtc.announcedAddress || SERVER_PRIVATE_IP || '127.0.0.1';
+
     webRtcServer = await mediaSoupWorker.createWebRtcServer({
       listenInfos: [
-        { protocol: 'udp', ip: '127.0.0.1', port },
-        { protocol: 'tcp', ip: '127.0.0.1', port }
+        { protocol: 'udp', ip: '0.0.0.0', announcedAddress, port },
+        { protocol: 'tcp', ip: '0.0.0.0', announcedAddress, port }
       ]
     });
 
-    webRtcServerListenInfo = { ip: '127.0.0.1' };
+    webRtcServerListenInfo = { ip: '0.0.0.0', announcedAddress };
 
-    logger.debug(`WebRtcServer created on 127.0.0.1:${port} (dev mode)`);
+    logger.debug(
+      `WebRtcServer created on 0.0.0.0:${port} announced as ${announcedAddress} (dev mode)`
+    );
   }
 };
 

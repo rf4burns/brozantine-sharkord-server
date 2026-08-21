@@ -68,11 +68,14 @@ const TextChannel = memo(
 
     const {
       virtuosoRef,
+      viewportRef,
       atBottom,
       firstItemIndex,
       unseenCount,
       onAtBottomStateChange,
+      onAtTopStateChange,
       onStartReached,
+      onTotalListHeightChanged,
       scrollToBottom,
       isAtBottom,
       scrollToGroupByMessageId
@@ -244,7 +247,7 @@ const TextChannel = memo(
           isRightSidebarOpen={isRightSidebarOpen}
         />
 
-        <div className="relative min-h-0 flex-1">
+        <div className="relative min-h-0 flex-1" ref={viewportRef}>
           <Virtuoso
             key={channelId}
             ref={virtuosoRef}
@@ -254,7 +257,9 @@ const TextChannel = memo(
             alignToBottom
             followOutput={atBottom ? 'smooth' : false}
             atBottomStateChange={onAtBottomStateChange}
+            atTopStateChange={onAtTopStateChange}
             startReached={onStartReached}
+            totalListHeightChanged={onTotalListHeightChanged}
             increaseViewportBy={{ top: 400, bottom: 200 }}
             computeItemKey={computeGroupKey}
             itemContent={renderMessageGroup}

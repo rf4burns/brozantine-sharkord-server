@@ -355,6 +355,25 @@ describe('roles router', () => {
     expect(defaultRole?.hoist).toBe(false);
   });
 
+  test('should ignore hoist on the owner role', async () => {
+    const { caller } = await initTest();
+
+    await caller.roles.update({
+      roleId: OWNER_ROLE_ID,
+      name: 'Owner',
+      color: '#ff0000',
+      permissions: Object.values(Permission),
+      hoist: true,
+      storageQuotaOverrideEnabled: false,
+      storageSpaceQuota: 0
+    });
+
+    const roles = await caller.roles.getAll();
+    const ownerRole = roles.find((role) => role.id === OWNER_ROLE_ID);
+
+    expect(ownerRole?.hoist).toBe(false);
+  });
+
   test('should reorder roles below the owner and above the default role', async () => {
     const { caller } = await initTest();
     const newRoleId = await caller.roles.add();

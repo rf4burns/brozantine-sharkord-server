@@ -5,11 +5,14 @@ import { VoiceStateIndicators } from '@/components/voice-state-icons/indicators'
 import { useCan } from '@/features/server/hooks';
 import type { TVoiceUser } from '@/features/server/types';
 import { useIsOwnUser } from '@/features/server/users/hooks';
-import { useSpeakingState } from '@/features/server/voice/hooks';
+import {
+  useOwnVoiceState,
+  useSpeakingState
+} from '@/features/server/voice/hooks';
 import { Permission } from '@kurier/shared';
 import { cn } from '@kurier/ui';
 import { Monitor, Video, VolumeX } from 'lucide-react';
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { UserPopover } from '../user-popover';
 import { VOICE_USER_DND_MIME } from './helpers';
 import { StreamContextMenu } from './stream-context-menu';
@@ -22,11 +25,16 @@ type TVoiceUserProps = {
 
 const VoiceUser = memo(({ user, isOwnChannel = false }: TVoiceUserProps) => {
   const isOwnUser = useIsOwnUser(user.id);
+  const ownVoiceState = useOwnVoiceState();
   const { isMuted } = useStreamVolumeControl({ type: 'user', userId: user.id });
   const { isActivelySpeaking, speakingEffectClass } = useSpeakingState(user.id);
   const can = useCan();
   const shouldShowMuteIndicator = isOwnChannel && !isOwnUser && isMuted;
   const canMove = !isOwnUser && can(Permission.MOVE_MEMBERS);
+  const voiceState = useMemo(
+    () => (isOwnUser ? ownVoiceState : user.state),
+    [isOwnUser, ownVoiceState, user.state]
+  );
 
   const handleDragStart = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
@@ -66,13 +74,13 @@ const VoiceUser = memo(({ user, isOwnChannel = false }: TVoiceUserProps) => {
           <VolumeX className="h-3 w-3 text-red-500" />
         )}
 
-        <VoiceStateIndicators state={user.state} />
+        <VoiceStateIndicators state={voiceState} hideWhenClear />
 
-        {user.state.webcamEnabled && (
+        {voiceState.webcamEnabled && (
           <Video className="h-3 w-3 text-blue-500" />
         )}
 
-        {user.state.sharingScreen && (
+        {voiceState.sharingScreen && (
           <Monitor className="h-3 w-3 text-purple-500" />
         )}
       </div>

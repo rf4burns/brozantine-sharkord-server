@@ -61,22 +61,27 @@ const TextTopbar = memo(
     }, [channel]);
 
     return (
-      <div className="flex h-12 w-auto shrink-0 overflow-hidden border-b border-border bg-background">
+      <div className="flex h-12 w-full shrink-0 border-b border-border bg-background">
         <div className="flex w-full items-center justify-between gap-2 px-4">
-          <div className="flex min-w-0 items-center gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             {getIcon()}
-            <span className="max-w-40 truncate font-semibold">{info.name}</span>
+            <span className="max-w-40 shrink-0 truncate font-semibold">
+              {info.name}
+            </span>
             {info.topic && (
               <>
-                <span className="hidden h-4 w-px bg-border sm:block" />
-                <span className="hidden truncate text-xs text-muted-foreground sm:inline">
+                <span className="hidden h-4 w-px shrink-0 bg-border sm:block" />
+                <span className="hidden min-w-0 truncate text-xs text-muted-foreground sm:inline">
                   {info.topic}
                 </span>
               </>
             )}
           </div>
-          <div className="flex items-center gap-1">
-            <PinnedMessagesPopover onScrollToMessage={onScrollToMessage} />
+          <div className="flex shrink-0 items-center gap-1">
+            <PinnedMessagesPopover
+              channelId={channelId}
+              onScrollToMessage={onScrollToMessage}
+            />
             {!onClose && (
               <HeaderActions
                 onToggleRightSidebar={onToggleRightSidebar}
@@ -90,6 +95,7 @@ const TextTopbar = memo(
                 icon={X}
                 variant="ghost"
                 size="sm"
+                className="h-8 w-8"
               />
             )}
           </div>

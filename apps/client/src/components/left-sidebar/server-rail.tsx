@@ -23,12 +23,10 @@ import {
 } from '@/helpers/saved-hosts';
 import { cn } from '@/lib/utils';
 import { Tooltip } from '@kurier/ui';
-import { Plus } from 'lucide-react';
+import { MessageCircleMore, Plus } from 'lucide-react';
 import { memo, useCallback, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-
-const KURIER_MARK = '/kurier-logo.png';
 
 type TRailButtonProps = {
   active: boolean;
@@ -220,7 +218,7 @@ const ServerRail = memo(() => {
             badgeCount={dmUnread}
             onClick={openDms}
           >
-            <img src={KURIER_MARK} alt="" className="h-8 w-8" />
+            <MessageCircleMore className="h-6 w-6" />
           </RailButton>
           <div className="my-2 h-0.5 w-8 rounded-full bg-border" />
         </>

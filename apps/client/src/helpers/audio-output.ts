@@ -47,4 +47,18 @@ const applyAudioOutputDevice = async (
   }
 };
 
-export { applyAudioOutputDevice };
+// autoPlay often races srcObject assignment for WebRTC streams; call after
+// attaching the stream (and after setSinkId, which can pause playback).
+const ensureAudioElementPlaying = async (
+  audioElement: HTMLAudioElement | null
+) => {
+  if (!audioElement || !audioElement.srcObject) return;
+
+  try {
+    await audioElement.play();
+  } catch (error) {
+    console.warn('Failed to start audio playback:', error);
+  }
+};
+
+export { applyAudioOutputDevice, ensureAudioElementPlaying };

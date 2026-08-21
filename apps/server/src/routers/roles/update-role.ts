@@ -46,7 +46,10 @@ const updateRoleRoute = protectedProcedure
       message: 'Role not found'
     });
 
-    const hoist = existingRole.isDefault ? false : input.hoist;
+    const hoist =
+      existingRole.isDefault || existingRole.id === OWNER_ROLE_ID
+        ? false
+        : input.hoist;
 
     const updatedRole = await db
       .update(roles)

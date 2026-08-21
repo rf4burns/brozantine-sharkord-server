@@ -978,6 +978,30 @@ describe('users router', () => {
     ).rejects.toThrow('You cannot delete yourself.');
   });
 
+  test('should throw when trying to delete an owner account', async () => {
+    const { caller } = await initTest();
+
+    await caller.users.addRole({
+      userId: 2,
+      roleId: OWNER_ROLE_ID
+    });
+
+    await expect(
+      caller.users.delete({
+        userId: 2
+      })
+    ).rejects.toThrow('Cannot delete an owner account.');
+
+    const targetUser = await tdb
+      .select({ id: users.id, deleted: users.deleted })
+      .from(users)
+      .where(eq(users.id, 2))
+      .get();
+
+    expect(targetUser).toBeDefined();
+    expect(targetUser!.deleted).toBe(false);
+  });
+
   test('should throw when trying to delete a non-existing user', async () => {
     const { caller } = await initTest();
 

@@ -45,7 +45,7 @@ import {
   getTrpcError
 } from '@kurier/shared';
 import { BellOff, Hash, Volume2 } from 'lucide-react';
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ChannelContextMenu } from '../context-menus/channel';
@@ -76,6 +76,7 @@ const Voice = memo(
     const notificationLevel = useChannelNotificationLevel(channel.id);
     const isMuted = notificationLevel === 'nothing';
 
+    const dropZoneRef = useRef<HTMLDivElement>(null);
     const [isDragOver, setIsDragOver] = useState(false);
 
     const isVoiceActive = users.length > 0 || externalStreams.length > 0;
@@ -90,7 +91,21 @@ const Voice = memo(
       setIsDragOver(true);
     }, []);
 
-    const handleDragLeave = useCallback(() => setIsDragOver(false), []);
+    const handleDragLeave = useCallback(
+      (e: React.DragEvent<HTMLDivElement>) => {
+        const next = e.relatedTarget;
+
+        if (
+          next instanceof Node &&
+          dropZoneRef.current?.contains(next)
+        ) {
+          return;
+        }
+
+        setIsDragOver(false);
+      },
+      []
+    );
 
     const handleDrop = useCallback(
       async (e: React.DragEvent<HTMLDivElement>) => {
@@ -118,15 +133,20 @@ const Voice = memo(
     );
 
     return (
-      <>
+      <div
+        ref={dropZoneRef}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={cn('rounded-[4px]', {
+          'ring-1 ring-primary bg-accent/40': isDragOver
+        })}
+      >
         <ItemWrapper
           {...props}
           isSelected={isSelected}
           isUnread={unreadCount > 0}
           isMuted={isMuted}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
           className={cn(props.className, {
             'text-blue-500':
               someoneIsSharingScreen && (isOwnChannel || isSelected),
@@ -135,8 +155,7 @@ const Voice = memo(
               (isSelected &&
                 !someoneIsSharingScreen &&
                 !isOwnChannel &&
-                isVoiceActive),
-            'ring-1 ring-primary bg-accent/40': isDragOver
+                isVoiceActive)
           })}
         >
           {isVoiceActive ? (
@@ -195,7 +214,7 @@ const Voice = memo(
             ))}
           </div>
         )}
-      </>
+      </div>
     );
   }
 );
@@ -241,9 +260,6 @@ type TItemWrapperProps = {
   dragHandleProps?: React.HTMLAttributes<HTMLDivElement>;
   style?: React.CSSProperties;
   disabled?: boolean;
-  onDragOver?: React.DragEventHandler<HTMLDivElement>;
-  onDragLeave?: React.DragEventHandler<HTMLDivElement>;
-  onDrop?: React.DragEventHandler<HTMLDivElement>;
 };
 
 const ItemWrapper = memo(
@@ -256,19 +272,13 @@ const ItemWrapper = memo(
     className,
     dragHandleProps,
     style,
-    disabled = false,
-    onDragOver,
-    onDragLeave,
-    onDrop
+    disabled = false
   }: TItemWrapperProps) => {
     return (
       <div
         {...dragHandleProps}
         data-testid={TestId.CHANNEL_ITEM}
         style={style}
-        onDragOver={onDragOver}
-        onDragLeave={onDragLeave}
-        onDrop={onDrop}
         className={cn(
           'flex w-full cursor-pointer select-none items-center gap-2 rounded-[4px] px-2 py-1 text-[15px] text-muted-foreground hover:bg-card hover:text-foreground',
           {

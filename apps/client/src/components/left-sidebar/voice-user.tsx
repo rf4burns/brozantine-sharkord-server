@@ -12,7 +12,7 @@ import {
 import { Permission } from '@kurier/shared';
 import { cn } from '@kurier/ui';
 import { Monitor, Video, VolumeX } from 'lucide-react';
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo, useRef } from 'react';
 import { UserPopover } from '../user-popover';
 import { VOICE_USER_DND_MIME } from './helpers';
 import { StreamContextMenu } from './stream-context-menu';
@@ -31,6 +31,7 @@ const VoiceUser = memo(({ user, isOwnChannel = false }: TVoiceUserProps) => {
   const can = useCan();
   const shouldShowMuteIndicator = isOwnChannel && !isOwnUser && isMuted;
   const canMove = !isOwnUser && can(Permission.MOVE_MEMBERS);
+  const didDragRef = useRef(false);
   const voiceState = useMemo(
     () => (isOwnUser ? ownVoiceState : user.state),
     [isOwnUser, ownVoiceState, user.state]
@@ -38,16 +39,34 @@ const VoiceUser = memo(({ user, isOwnChannel = false }: TVoiceUserProps) => {
 
   const handleDragStart = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
+      didDragRef.current = true;
       e.dataTransfer.setData(VOICE_USER_DND_MIME, String(user.id));
       e.dataTransfer.effectAllowed = 'move';
     },
     [user.id]
   );
 
+  const handleDragEnd = useCallback(() => {
+    // click can fire after dragend; clear on the next tick if it did not
+    window.setTimeout(() => {
+      didDragRef.current = false;
+    }, 0);
+  }, []);
+
+  const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!didDragRef.current) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    didDragRef.current = false;
+  }, []);
+
   const userRow = (
     <div
       draggable={canMove}
       onDragStart={canMove ? handleDragStart : undefined}
+      onDragEnd={canMove ? handleDragEnd : undefined}
+      onClick={canMove ? handleClick : undefined}
       className={cn(
         'flex items-center gap-2 px-2 py-1 rounded hover:bg-accent/30 text-sm',
         canMove && 'cursor-grab active:cursor-grabbing'
@@ -56,7 +75,7 @@ const VoiceUser = memo(({ user, isOwnChannel = false }: TVoiceUserProps) => {
       <UserAvatar
         userId={user.id}
         className={cn('h-5 w-5', isActivelySpeaking && speakingEffectClass)}
-        showUserPopover={true}
+        showUserPopover={false}
         showStatusBadge={false}
       />
 

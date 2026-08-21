@@ -2,6 +2,7 @@ import {
   ActivityLogType,
   DELETED_USER_IDENTITY_AND_NAME,
   DisconnectCode,
+  OWNER_ROLE_ID,
   Permission,
   ServerEvents
 } from '@kurier/shared';
@@ -9,6 +10,7 @@ import { eq } from 'drizzle-orm';
 import z from 'zod';
 import { db } from '../../db';
 import { publishUser } from '../../db/publishers';
+import { getUserRoleIds } from '../../db/queries/roles';
 import { emojis, messageReactions, messages, users } from '../../db/schema';
 import { assertCanModerateUser } from '../../helpers/role-hierarchy';
 import { enqueueActivityLog } from '../../queues/activity-log';
@@ -57,6 +59,13 @@ const deleteUserRoute = protectedProcedure
     invariant(!targetUser.deleted, {
       code: 'BAD_REQUEST',
       message: 'User is already deleted.'
+    });
+
+    const targetRoleIds = await getUserRoleIds(input.userId);
+
+    invariant(!targetRoleIds.includes(OWNER_ROLE_ID), {
+      code: 'BAD_REQUEST',
+      message: 'Cannot delete an owner account.'
     });
 
     const userWs = ctx.getUserWs(input.userId);

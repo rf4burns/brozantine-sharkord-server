@@ -6,7 +6,12 @@ import { useCan, useUserRoles } from '@/features/server/hooks';
 import { useOwnUserId, useUserStatus } from '@/features/server/users/hooks';
 import { useDateLocale } from '@/hooks/use-date-locale';
 import { cn } from '@/lib/utils';
-import { Permission, UserStatus, type TJoinedUser } from '@kurier/shared';
+import {
+  OWNER_ROLE_ID,
+  Permission,
+  UserStatus,
+  type TJoinedUser
+} from '@kurier/shared';
 import {
   Button,
   DropdownMenu,
@@ -17,7 +22,7 @@ import {
 } from '@kurier/ui';
 import { format, formatDistanceToNow } from 'date-fns';
 import { MoreVertical, Trash2, UserCog } from 'lucide-react';
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 type TTableUserProps = {
@@ -32,6 +37,10 @@ const TableUser = memo(({ user, refetch }: TTableUserProps) => {
   const status = useUserStatus(user.id);
   const ownUserId = useOwnUserId();
   const can = useCan();
+  const isOwnerAccount = useMemo(
+    () => roles.some((role) => role.id === OWNER_ROLE_ID),
+    [roles]
+  );
 
   const onModerateClick = useCallback(() => {
     setModViewOpen(true, user.id);
@@ -125,18 +134,20 @@ const TableUser = memo(({ user, refetch }: TTableUserProps) => {
                 <UserCog className="h-4 w-4" />
                 {t('moderateUserAction')}
               </DropdownMenuItem>
-              {ownUserId !== user.id && can(Permission.DELETE_USERS) && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={onDeleteClick}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    {t('deleteUserAction', { defaultValue: t('deleteBtn') })}
-                  </DropdownMenuItem>
-                </>
-              )}
+              {ownUserId !== user.id &&
+                !isOwnerAccount &&
+                can(Permission.DELETE_USERS) && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={onDeleteClick}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      {t('deleteUserAction', { defaultValue: t('deleteBtn') })}
+                    </DropdownMenuItem>
+                  </>
+                )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

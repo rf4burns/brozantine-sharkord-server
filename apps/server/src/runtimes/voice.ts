@@ -1061,9 +1061,14 @@ class VoiceRuntime {
     };
   };
 
+  // plugins use ip as the RTP bind/send address for in-process publishers
+  // (e.g. ffmpeg); never return an unspecified bind-all address
   public static getListenInfo = () => {
+    const bindIp = webRtcServerListenInfo.ip;
+    const ip = bindIp === '0.0.0.0' || bindIp === '::' ? '127.0.0.1' : bindIp;
+
     return {
-      ip: webRtcServerListenInfo.ip,
+      ip,
       announcedAddress: webRtcServerListenInfo.announcedAddress
     };
   };

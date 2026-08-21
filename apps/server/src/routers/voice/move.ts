@@ -1,6 +1,5 @@
 import {
   ActivityLogType,
-  ChannelPermission,
   ChannelType,
   Permission,
   ServerEvents
@@ -12,6 +11,7 @@ import { db } from '../../db';
 import { publishHiddenChannelToUser } from '../../db/publishers';
 import { userCan } from '../../db/queries/roles';
 import { channels, users } from '../../db/schema';
+import { assertChannelAccess } from '../../helpers/assert-channel-access';
 import { grantVoiceMove } from '../../helpers/voice-move-grants';
 import { logger } from '../../logger';
 import { enqueueActivityLog } from '../../queues/activity-log';
@@ -64,7 +64,8 @@ const moveUserRoute = rateLimitedProcedure(protectedProcedure, {
       message: 'Channel is not a voice channel'
     });
 
-    await ctx.needsChannelPermission(input.channelId, ChannelPermission.JOIN);
+    // sidebar drop targets are viewable channels; JOIN is granted to the target
+    await assertChannelAccess(ctx, input.channelId);
 
     const canUseVoice = await userCan(
       input.userId,

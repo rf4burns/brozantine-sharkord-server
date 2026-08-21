@@ -5,6 +5,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
 
+## [0.0.32] - 2026-08-22
+
+### Fixed
+
+- Music bot no longer joins a voice channel and instantly leaves without playing; plugin RTP now targets loopback instead of an invalid bind-all address.
+- Moving a member into a channel you can view (but not join) works again from the sidebar.
+
 ## [0.0.31] - 2026-08-21
 
 ### Fixed

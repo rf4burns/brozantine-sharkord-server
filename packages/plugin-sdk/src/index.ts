@@ -173,6 +173,7 @@ export interface PluginContext {
   voice: {
     getRouter(channelId: number): Router<AppData>;
     createStream(options: TCreateStreamOptions): TExternalStreamHandle;
+    // ip is the address plugins should bind/send RTP to (never a bind-all address)
     getListenInfo(): {
       ip: string;
       announcedAddress: string | undefined;

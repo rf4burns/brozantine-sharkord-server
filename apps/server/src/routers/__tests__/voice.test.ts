@@ -76,7 +76,7 @@ describe('voice router', () => {
       ).rejects.toThrow('Channel is not a voice channel');
     });
 
-    test('should reject when the caller cannot join the destination channel', async () => {
+    test('should reject when the caller cannot view the destination channel', async () => {
       await tdb.insert(rolePermissions).values({
         roleId: 3,
         permission: Permission.MOVE_MEMBERS,
@@ -135,6 +135,43 @@ describe('voice router', () => {
           channelId: PRIVATE_VOICE_CHANNEL_ID
         })
       ).rejects.toThrow('Insufficient channel permissions');
+    });
+
+    test('should allow moving when the caller can view but not join the destination', async () => {
+      await tdb.insert(rolePermissions).values({
+        roleId: 3,
+        permission: Permission.MOVE_MEMBERS,
+        createdAt: Date.now()
+      });
+      await tdb.insert(userRoles).values({
+        userId: 2,
+        roleId: 3,
+        createdAt: Date.now()
+      });
+      await tdb.insert(channelRolePermissions).values({
+        channelId: PRIVATE_VOICE_CHANNEL_ID,
+        roleId: 3,
+        permission: ChannelPermission.VIEW_CHANNEL,
+        allow: true,
+        createdAt: Date.now()
+      });
+
+      const { caller } = await initTest(2);
+
+      const originRuntime = new VoiceRuntime(2);
+
+      originRuntime.addUser(4, { micMuted: false, soundMuted: false });
+
+      try {
+        await expect(
+          caller.voice.moveUser({
+            userId: 4,
+            channelId: PRIVATE_VOICE_CHANNEL_ID
+          })
+        ).resolves.toBeUndefined();
+      } finally {
+        await originRuntime.destroy();
+      }
     });
 
     test('should allow moving a user into a channel they cannot access themselves', async () => {

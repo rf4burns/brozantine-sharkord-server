@@ -31,6 +31,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref_name }}
 
       - name: Build project artifacts
         uses: ./.github/actions/build-kurier
@@ -88,7 +91,12 @@ jobs:
           git commit -m "chore: bump version to ${{ steps.get_version.outputs.version }}"
 
       - name: Create Git tag
-        run: git tag -a "v${{ steps.get_version.outputs.version }}" -m "Release v${{ steps.get_version.outputs.version }}"
+        run: |
+          if git rev-parse "v${{ steps.get_version.outputs.version }}" >/dev/null 2>&1; then
+            echo "Tag v${{ steps.get_version.outputs.version }} already exists; skipping create"
+          else
+            git tag -a "v${{ steps.get_version.outputs.version }}" -m "Release v${{ steps.get_version.outputs.version }}"
+          fi
 
       - name: Push commit and tag
-        run: git push --follow-tags
+        run: git push origin "HEAD:${{ github.ref_name }}" --follow-tags

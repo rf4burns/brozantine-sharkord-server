@@ -32,41 +32,39 @@ type TQuickEmojiButtonProps = {
   onSelect: (emoji: TEmojiItem) => void;
 };
 
-const QuickEmojiButton = memo(
-  ({ emoji, onSelect }: TQuickEmojiButtonProps) => {
-    const preferImage = shouldUseFallbackImage(emoji);
-    const [imageFailed, setImageFailed] = useState(false);
-    const showImage = preferImage && !!emoji.fallbackImage && !imageFailed;
+const QuickEmojiButton = memo(({ emoji, onSelect }: TQuickEmojiButtonProps) => {
+  const preferImage = shouldUseFallbackImage(emoji);
+  const [imageFailed, setImageFailed] = useState(false);
+  const showImage = preferImage && !!emoji.fallbackImage && !imageFailed;
 
-    const onImageError = useCallback(() => {
-      setImageFailed(true);
-    }, []);
+  const onImageError = useCallback(() => {
+    setImageFailed(true);
+  }, []);
 
-    const onClick = useCallback(() => {
-      onSelect(emoji);
-    }, [emoji, onSelect]);
+  const onClick = useCallback(() => {
+    onSelect(emoji);
+  }, [emoji, onSelect]);
 
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        className="w-6 h-6 flex items-center justify-center hover:bg-accent rounded-md transition-colors text-md"
-        title={`:${emoji.shortcodes[0]}:`}
-      >
-        {showImage ? (
-          <img
-            src={emoji.fallbackImage}
-            alt={emoji.name}
-            className="w-5 h-5 object-contain"
-            onError={onImageError}
-          />
-        ) : emoji.emoji ? (
-          <span>{emoji.emoji}</span>
-        ) : null}
-      </button>
-    );
-  }
-);
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-6 h-6 flex items-center justify-center hover:bg-accent rounded-md transition-colors text-md"
+      title={`:${emoji.shortcodes[0]}:`}
+    >
+      {showImage ? (
+        <img
+          src={emoji.fallbackImage}
+          alt={emoji.name}
+          className="w-5 h-5 object-contain"
+          onError={onImageError}
+        />
+      ) : emoji.emoji ? (
+        <span>{emoji.emoji}</span>
+      ) : null}
+    </button>
+  );
+});
 
 type TMessageActionsProps = {
   messageId: number;

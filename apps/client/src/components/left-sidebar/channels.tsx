@@ -95,10 +95,7 @@ const Voice = memo(
       (e: React.DragEvent<HTMLDivElement>) => {
         const next = e.relatedTarget;
 
-        if (
-          next instanceof Node &&
-          dropZoneRef.current?.contains(next)
-        ) {
+        if (next instanceof Node && dropZoneRef.current?.contains(next)) {
           return;
         }
 

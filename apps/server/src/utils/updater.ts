@@ -14,7 +14,8 @@ class Updater {
     this.bunUpdater = new BunUpdater({
       repoOwner: 'rf4burns',
       repoName: 'brozantine-sharkord-server',
-      currentVersion: SERVER_VERSION
+      currentVersion: SERVER_VERSION,
+      autoStart: true
     });
 
     if (!this.canUpdate()) {

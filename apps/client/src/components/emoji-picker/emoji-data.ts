@@ -20,7 +20,9 @@ type EmojiCategoryId = (typeof EMOJI_CATEGORIES)[number]['id'];
 const toTEmojiItem = (emoji: EmojiItem): TEmojiItem => ({
   name: emoji.name,
   shortcodes: emoji.shortcodes,
-  fallbackImage: emoji.emoji ? getTwemojiUrl(emoji.emoji) : emoji.fallbackImage,
+  fallbackImage:
+    (emoji.emoji ? getTwemojiUrl(emoji.emoji) : undefined) ??
+    emoji.fallbackImage,
   emoji: emoji.emoji
 });
 

@@ -1,12 +1,13 @@
 import type { TEmojiItem } from '@/components/tiptap-input/helpers';
 import { cn } from '@/lib/utils';
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   EMOJI_CATEGORIES,
   type EmojiCategoryId,
   getEmojisByCategory
 } from './emoji-data';
 import { EmojiGrid } from './emoji-grid';
+import { preloadEmojiImages } from './preload-emojis';
 import { useRecentEmojis } from './use-recent-emojis';
 
 type TCategoryBarProps = {
@@ -67,6 +68,14 @@ const NativeEmojiTab = memo(({ onEmojiSelect }: TNativeEmojiTabProps) => {
     }
     return getEmojisByCategory(activeCategory);
   }, [activeCategory, recentEmojis]);
+
+  useEffect(() => {
+    preloadEmojiImages(
+      displayEmojis
+        .map((emoji) => emoji.fallbackImage)
+        .filter((url): url is string => !!url)
+    );
+  }, [displayEmojis]);
 
   const handleCategorySelect = useCallback((category: EmojiCategoryId) => {
     setActiveCategory(category);

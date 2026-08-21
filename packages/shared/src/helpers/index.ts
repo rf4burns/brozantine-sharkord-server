@@ -9,6 +9,7 @@ export * from './is-deleted-user';
 export * from './linkify-html';
 export * from './message-sanitizer';
 export * from './prepare-message-html';
+export * from './search-query';
 export * from './sha256';
 export * from './strip-zalgo';
 export * from './trpc-errors';

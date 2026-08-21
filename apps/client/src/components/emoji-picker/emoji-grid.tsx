@@ -2,7 +2,7 @@ import {
   shouldUseFallbackImage,
   type TEmojiItem
 } from '@/components/tiptap-input/helpers';
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { VirtuosoGrid } from 'react-virtuoso';
 import { GRID_COLS } from './emoji-data';
 
@@ -12,24 +12,35 @@ type TEmojiButtonProps = {
 };
 
 const EmojiButton = memo(({ emoji, onSelect }: TEmojiButtonProps) => {
-  const useImage = shouldUseFallbackImage(emoji);
+  const preferImage = shouldUseFallbackImage(emoji);
+  const [imageFailed, setImageFailed] = useState(false);
+  const showImage = preferImage && !!emoji.fallbackImage && !imageFailed;
+
+  const onImageError = useCallback(() => {
+    setImageFailed(true);
+  }, []);
+
+  const onClick = useCallback(() => {
+    onSelect(emoji);
+  }, [emoji, onSelect]);
 
   return (
     <button
       type="button"
-      onClick={() => onSelect(emoji)}
+      onClick={onClick}
       className="w-8 h-8 flex items-center justify-center hover:bg-accent rounded-md transition-colors cursor-pointer"
       title={`:${emoji.shortcodes[0]}:`}
     >
-      {emoji.emoji && !useImage ? (
-        <span className="text-xl leading-none">{emoji.emoji}</span>
-      ) : emoji.fallbackImage ? (
+      {showImage ? (
         <img
           src={emoji.fallbackImage}
           alt={emoji.name}
           className="w-6 h-6 object-contain"
           loading="lazy"
+          onError={onImageError}
         />
+      ) : emoji.emoji ? (
+        <span className="text-xl leading-none">{emoji.emoji}</span>
       ) : (
         <span className="text-xs text-muted-foreground truncate">
           {emoji.shortcodes[0]}

@@ -5,6 +5,7 @@ import {
   setLocalStorageItemAsJSON
 } from '@/helpers/storage';
 import { useCallback, useSyncExternalStore } from 'react';
+import { ALL_EMOJIS } from './emoji-data';
 
 const MAX_RECENT_EMOJIS = 32;
 
@@ -15,12 +16,29 @@ type StoredEmoji = {
   emoji?: string;
 };
 
+const emojiByName = new Map(ALL_EMOJIS.map((emoji) => [emoji.name, emoji]));
+
 let recentEmojisCache: TEmojiItem[] | null = null;
 
 const subscribers = new Set<() => void>();
 
 const notifySubscribers = () => {
   subscribers.forEach((callback) => callback());
+};
+
+const resolveStoredEmoji = (stored: StoredEmoji): TEmojiItem => {
+  const current = emojiByName.get(stored.name);
+
+  if (current) {
+    return current;
+  }
+
+  return {
+    name: stored.name,
+    shortcodes: stored.shortcodes,
+    fallbackImage: stored.fallbackImage,
+    emoji: stored.emoji
+  };
 };
 
 const loadRecentEmojis = (): TEmojiItem[] => {
@@ -33,7 +51,7 @@ const loadRecentEmojis = (): TEmojiItem[] => {
     []
   );
 
-  recentEmojisCache = stored ?? [];
+  recentEmojisCache = (stored ?? []).map(resolveStoredEmoji);
 
   return recentEmojisCache;
 };

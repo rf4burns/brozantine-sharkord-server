@@ -263,7 +263,7 @@ const TextChannel = memo(
             increaseViewportBy={{ top: 400, bottom: 200 }}
             computeItemKey={computeGroupKey}
             itemContent={renderMessageGroup}
-            className="h-full pb-7 pt-2 animate-in fade-in duration-500"
+            className="h-full pb-10 pt-2 animate-in fade-in duration-500"
           />
           <JumpToBottom
             visible={!atBottom}

@@ -1,5 +1,9 @@
 import { getTRPCClient } from '@/lib/trpc';
-import { getTrpcError } from '@kurier/shared';
+import {
+  getTrpcError,
+  isValidSearchQuery,
+  parseSearchQuery
+} from '@kurier/shared';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import type { TSearchResults, TUnifiedSearchResult } from './types';
@@ -22,10 +26,11 @@ export const useSearch = (isOpen: boolean) => {
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    const trimmed = query.trim();
+  const parsedQuery = useMemo(() => parseSearchQuery(query), [query]);
+  const canSearch = isValidSearchQuery(parsedQuery, MIN_QUERY_LENGTH);
 
-    if (!isOpen || trimmed.length < MIN_QUERY_LENGTH) {
+  useEffect(() => {
+    if (!isOpen || !canSearch) {
       setResults(EMPTY_RESULTS);
       setLoading(false);
 
@@ -40,7 +45,7 @@ export const useSearch = (isOpen: boolean) => {
       setLoading(true);
 
       try {
-        const next = await trpc.messages.search.query({ query: trimmed });
+        const next = await trpc.messages.search.query({ query: query.trim() });
 
         if (!cancelled) {
           setResults(next);
@@ -62,9 +67,8 @@ export const useSearch = (isOpen: boolean) => {
       clearTimeout(timer);
       cancelled = true;
     };
-  }, [query, isOpen]);
+  }, [query, isOpen, canSearch]);
 
-  const canSearch = query.trim().length >= MIN_QUERY_LENGTH;
   const totalResults = results.messages.length + results.files.length;
 
   // combine messages and files into a single list

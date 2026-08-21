@@ -43,4 +43,26 @@ describe('getRoleNameColor', () => {
 
     expect(color).toBe('#00ff00');
   });
+
+  test('uses the default role color when it is the highest colored role', () => {
+    const color = getRoleNameColor([
+      makeRole({
+        id: OWNER_ROLE_ID,
+        name: 'Owner',
+        position: 2,
+        color: '#ffffff',
+        isPersistent: true
+      }),
+      makeRole({
+        id: 2,
+        name: 'Untrusted',
+        position: 0,
+        color: '#ff0000',
+        isDefault: true,
+        isPersistent: true
+      })
+    ]);
+
+    expect(color).toBe('#ff0000');
+  });
 });

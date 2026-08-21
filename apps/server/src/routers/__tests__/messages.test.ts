@@ -441,6 +441,325 @@ describe('messages router', () => {
     ).rejects.toThrow('Search is disabled on this server');
   });
 
+  test('should search with from filter', async () => {
+    const { caller: owner } = await initTest(1);
+    const { caller: member } = await initTest(2);
+
+    const ownerMessageId = await owner.messages.send({
+      channelId: 1,
+      content: 'from-filter unique owner text',
+      files: []
+    });
+
+    await member.messages.send({
+      channelId: 1,
+      content: 'from-filter unique member text',
+      files: []
+    });
+
+    const result = await owner.messages.search({
+      query: 'from:"Test Owner" from-filter'
+    });
+
+    expect(
+      result.messages.some((message) => message.id === ownerMessageId)
+    ).toBe(true);
+    expect(result.messages.every((message) => message.userId === 1)).toBe(true);
+  });
+
+  test('should return empty results for unknown from user', async () => {
+    const { caller } = await initTest(1);
+
+    const result = await caller.messages.search({
+      query: 'from:NobodyHere'
+    });
+
+    expect(result.messages).toEqual([]);
+    expect(result.files).toEqual([]);
+  });
+
+  test('should search with mentions filter', async () => {
+    const { caller } = await initTest(1);
+
+    const mentionContent =
+      '<p>ping <span data-type="mention" data-user-id="2" class="mention">@Test User</span></p>';
+
+    const mentionedMessageId = await caller.messages.send({
+      channelId: 1,
+      content: mentionContent,
+      files: []
+    });
+
+    await caller.messages.send({
+      channelId: 1,
+      content: 'no mention here at all',
+      files: []
+    });
+
+    const result = await caller.messages.search({
+      query: 'mentions:"Test User"'
+    });
+
+    expect(
+      result.messages.some((message) => message.id === mentionedMessageId)
+    ).toBe(true);
+    expect(
+      result.messages.every((message) =>
+        (message.content ?? '').includes('data-user-id="2"')
+      )
+    ).toBe(true);
+  });
+
+  test('should search with in channel filter', async () => {
+    const { caller } = await initTest(1);
+
+    const generalMessageId = await caller.messages.send({
+      channelId: 1,
+      content: 'in-filter channel scoped message',
+      files: []
+    });
+
+    await caller.messages.send({
+      channelId: 2,
+      content: 'in-filter channel scoped message',
+      files: []
+    });
+
+    const result = await caller.messages.search({
+      query: 'in:General in-filter'
+    });
+
+    expect(
+      result.messages.some((message) => message.id === generalMessageId)
+    ).toBe(true);
+    expect(result.messages.every((message) => message.channelId === 1)).toBe(
+      true
+    );
+  });
+
+  test('should return empty results for unknown in channel', async () => {
+    const { caller } = await initTest(1);
+
+    const result = await caller.messages.search({
+      query: 'in:DoesNotExist'
+    });
+
+    expect(result.messages).toEqual([]);
+    expect(result.files).toEqual([]);
+  });
+
+  test('should search with has:image filter', async () => {
+    const { caller } = await initTest(1);
+
+    const imageMessageId = await caller.messages.send({
+      channelId: 1,
+      content: 'has-image filter message',
+      files: []
+    });
+
+    const plainMessageId = await caller.messages.send({
+      channelId: 1,
+      content: 'has-image plain message',
+      files: []
+    });
+
+    const now = Date.now();
+
+    const [imageFile] = await tdb
+      .insert(files)
+      .values({
+        name: `has-image-${now}.png`,
+        originalName: 'has-image.png',
+        md5: `has-image-md5-${now}`,
+        userId: 1,
+        size: 100,
+        mimeType: 'image/png',
+        extension: 'png',
+        createdAt: now
+      })
+      .returning({ id: files.id });
+
+    await tdb.insert(messageFiles).values({
+      messageId: imageMessageId,
+      fileId: imageFile!.id,
+      createdAt: now
+    });
+
+    const result = await caller.messages.search({
+      query: 'has:image has-image'
+    });
+
+    expect(
+      result.messages.some((message) => message.id === imageMessageId)
+    ).toBe(true);
+    expect(
+      result.messages.some((message) => message.id === plainMessageId)
+    ).toBe(false);
+  });
+
+  test('should search with has:link filter', async () => {
+    const { caller } = await initTest(1);
+
+    const linkMessageId = await caller.messages.send({
+      channelId: 1,
+      content:
+        '<p>check <a href="https://example.com">https://example.com</a></p>',
+      files: []
+    });
+
+    await caller.messages.send({
+      channelId: 1,
+      content: 'no links in this message body',
+      files: []
+    });
+
+    const result = await caller.messages.search({
+      query: 'has:link'
+    });
+
+    expect(
+      result.messages.some((message) => message.id === linkMessageId)
+    ).toBe(true);
+    expect(
+      result.messages.every(
+        (message) =>
+          (message.content ?? '').includes('href=') ||
+          (message.content ?? '').includes('http')
+      )
+    ).toBe(true);
+  });
+
+  test('should search with before after and during date filters', async () => {
+    const { caller } = await initTest(1);
+
+    const oldMessageId = await caller.messages.send({
+      channelId: 1,
+      content: 'date-filter old message',
+      files: []
+    });
+
+    const midMessageId = await caller.messages.send({
+      channelId: 1,
+      content: 'date-filter mid message',
+      files: []
+    });
+
+    const newMessageId = await caller.messages.send({
+      channelId: 1,
+      content: 'date-filter new message',
+      files: []
+    });
+
+    const dayStart = Date.UTC(2020, 0, 15);
+    const midStart = Date.UTC(2022, 5, 10);
+    const recentStart = Date.UTC(2024, 0, 1);
+
+    await tdb
+      .update(messages)
+      .set({ createdAt: dayStart + 1000 })
+      .where(eq(messages.id, oldMessageId));
+    await tdb
+      .update(messages)
+      .set({ createdAt: midStart + 1000 })
+      .where(eq(messages.id, midMessageId));
+    await tdb
+      .update(messages)
+      .set({ createdAt: recentStart + 1000 })
+      .where(eq(messages.id, newMessageId));
+
+    const beforeResult = await caller.messages.search({
+      query: 'before:2021-01-01 date-filter'
+    });
+
+    expect(
+      beforeResult.messages.some((message) => message.id === oldMessageId)
+    ).toBe(true);
+    expect(
+      beforeResult.messages.some((message) => message.id === midMessageId)
+    ).toBe(false);
+
+    const afterResult = await caller.messages.search({
+      query: 'after:2023-01-01 date-filter'
+    });
+
+    expect(
+      afterResult.messages.some((message) => message.id === newMessageId)
+    ).toBe(true);
+    expect(
+      afterResult.messages.some((message) => message.id === midMessageId)
+    ).toBe(false);
+
+    const duringResult = await caller.messages.search({
+      query: 'during:2022-06-10 date-filter'
+    });
+
+    expect(
+      duringResult.messages.some((message) => message.id === midMessageId)
+    ).toBe(true);
+    expect(
+      duringResult.messages.some((message) => message.id === oldMessageId)
+    ).toBe(false);
+  });
+
+  test('should search with pinned filter', async () => {
+    const { caller } = await initTest(1);
+
+    const pinnedMessageId = await caller.messages.send({
+      channelId: 1,
+      content: 'pinned-filter target message',
+      files: []
+    });
+
+    await caller.messages.send({
+      channelId: 1,
+      content: 'pinned-filter unpinned message',
+      files: []
+    });
+
+    await caller.messages.togglePin({ messageId: pinnedMessageId });
+
+    const result = await caller.messages.search({
+      query: 'pinned:true pinned-filter'
+    });
+
+    expect(
+      result.messages.some((message) => message.id === pinnedMessageId)
+    ).toBe(true);
+    expect(result.messages.every((message) => message.pinned)).toBe(true);
+  });
+
+  test('should allow filter-only search queries', async () => {
+    const { caller } = await initTest(1);
+
+    const messageId = await caller.messages.send({
+      channelId: 1,
+      content: 'filter only search content',
+      files: []
+    });
+
+    await caller.messages.togglePin({ messageId });
+
+    const result = await caller.messages.search({
+      query: 'from:"Test Owner" pinned:true'
+    });
+
+    expect(result.messages.some((message) => message.id === messageId)).toBe(
+      true
+    );
+  });
+
+  test('should reject too-short queries without filters', async () => {
+    const { caller } = await initTest(1);
+
+    await expect(
+      caller.messages.search({
+        query: 'a'
+      })
+    ).rejects.toThrow(
+      'Search query is too short. Use at least 2 characters or a filter.'
+    );
+  });
+
   test('should get pinned messages from channel', async () => {
     const { caller } = await initTest();
 

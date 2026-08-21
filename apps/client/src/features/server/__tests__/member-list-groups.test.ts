@@ -45,32 +45,92 @@ const makeUser = (
 });
 
 describe('buildMemberListGroups', () => {
-  test('groups online members by highest hoisted role and puts offline in Offline', () => {
+  test('orders ranks highest to lowest with the lowest rank above Offline', () => {
     const roles = [
       makeRole({
         id: OWNER_ROLE_ID,
         name: 'Owner',
         position: 3,
-        hoist: true,
+        isPersistent: true
+      }),
+      makeRole({
+        id: 10,
+        name: 'Trusted',
+        position: 2,
+        color: '#00ff00'
+      }),
+      makeRole({
+        id: 11,
+        name: 'Untrusted',
+        position: 0,
+        color: '#ff0000'
+      })
+    ];
+
+    const users = [
+      makeUser({
+        id: 1,
+        name: 'OnlineTrusted',
+        roleIds: [10, 11],
+        status: UserStatus.ONLINE
+      }),
+      makeUser({
+        id: 2,
+        name: 'OnlineUntrusted',
+        roleIds: [11],
+        status: UserStatus.ONLINE
+      }),
+      makeUser({
+        id: 3,
+        name: 'OfflineUntrusted',
+        roleIds: [11],
+        status: UserStatus.OFFLINE
+      }),
+      makeUser({
+        id: 4,
+        name: 'OfflineTrusted',
+        roleIds: [10, 11],
+        status: UserStatus.OFFLINE
+      })
+    ];
+
+    const groups = buildMemberListGroups(users, roles, 100);
+
+    expect(groups.map((group) => group.id)).toEqual([
+      'role-10',
+      'role-11',
+      'offline'
+    ]);
+    expect(groups[0]?.label).toBe('Trusted');
+    expect(groups[1]?.label).toBe('Untrusted');
+    expect(groups[0]?.users.map((user) => user.id)).toEqual([1]);
+    expect(groups[1]?.users.map((user) => user.id)).toEqual([2, 3]);
+    expect(groups[2]?.users.map((user) => user.id)).toEqual([4]);
+  });
+
+  test('groups online members by highest non-owner role', () => {
+    const roles = [
+      makeRole({
+        id: OWNER_ROLE_ID,
+        name: 'Owner',
+        position: 3,
         isPersistent: true
       }),
       makeRole({
         id: 10,
         name: 'Admin',
         position: 2,
-        hoist: true,
         color: '#ff0000'
       }),
       makeRole({
         id: 11,
         name: 'Mod',
         position: 1,
-        hoist: true,
         color: '#00ff00'
       }),
       makeRole({
         id: 2,
-        name: 'Member',
+        name: 'Untrusted',
         position: 0,
         isDefault: true,
         isPersistent: true
@@ -92,7 +152,7 @@ describe('buildMemberListGroups', () => {
       }),
       makeUser({
         id: 3,
-        name: 'PlainOnline',
+        name: 'UntrustedOnline',
         roleIds: [2],
         status: UserStatus.ONLINE
       }),
@@ -109,7 +169,7 @@ describe('buildMemberListGroups', () => {
     expect(groups.map((group) => group.id)).toEqual([
       'role-10',
       'role-11',
-      'online',
+      'role-2',
       'offline'
     ]);
     expect(groups[0]?.users.map((user) => user.id)).toEqual([1]);
@@ -118,24 +178,22 @@ describe('buildMemberListGroups', () => {
     expect(groups[3]?.users.map((user) => user.id)).toEqual([4]);
   });
 
-  test('ignores non-hoisted roles and the owner role for grouping', () => {
+  test('ignores the owner role for grouping', () => {
     const roles = [
       makeRole({
         id: OWNER_ROLE_ID,
         name: 'Owner',
         position: 2,
-        hoist: true,
         isPersistent: true
       }),
       makeRole({
         id: 10,
-        name: 'HiddenVip',
-        position: 1,
-        hoist: false
+        name: 'Vip',
+        position: 1
       }),
       makeRole({
         id: 2,
-        name: 'Member',
+        name: 'Untrusted',
         position: 0,
         isDefault: true,
         isPersistent: true
@@ -159,7 +217,45 @@ describe('buildMemberListGroups', () => {
 
     const groups = buildMemberListGroups(users, roles, 100);
 
-    expect(groups.map((group) => group.id)).toEqual(['online']);
-    expect(groups[0]?.users.map((user) => user.id)).toEqual([1, 2]);
+    expect(groups.map((group) => group.id)).toEqual(['role-10', 'role-2']);
+    expect(groups[0]?.users.map((user) => user.id)).toEqual([2]);
+    expect(groups[1]?.users.map((user) => user.id)).toEqual([1]);
+  });
+
+  test('keeps the lowest rank when the member list is capped', () => {
+    const roles = [
+      makeRole({
+        id: 10,
+        name: 'Trusted',
+        position: 2,
+        color: '#00ff00'
+      }),
+      makeRole({
+        id: 11,
+        name: 'Untrusted',
+        position: 0,
+        color: '#ff0000'
+      })
+    ];
+
+    const users = [
+      makeUser({
+        id: 1,
+        name: 'OnlineTrusted',
+        roleIds: [10],
+        status: UserStatus.ONLINE
+      }),
+      makeUser({
+        id: 2,
+        name: 'OfflineUntrusted',
+        roleIds: [11],
+        status: UserStatus.OFFLINE
+      })
+    ];
+
+    const groups = buildMemberListGroups(users, roles, 1);
+
+    expect(groups.map((group) => group.id)).toEqual(['role-11']);
+    expect(groups[0]?.users.map((user) => user.id)).toEqual([2]);
   });
 });

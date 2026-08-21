@@ -338,7 +338,7 @@ const MessageCompose = memo(
     return (
       <div
         ref={containerRef}
-        className="compose-container relative flex min-h-14 shrink-0 flex-col bg-background px-4 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-1.5"
+        className="compose-container relative flex min-h-14 shrink-0 flex-col bg-background px-4 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-3"
       >
         <UsersTypingIndicator typingUsers={typingUsers} />
 

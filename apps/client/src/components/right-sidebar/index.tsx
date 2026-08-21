@@ -9,7 +9,6 @@ import { getRenderedUsername } from '@/helpers/get-rendered-username';
 import { getRoleNameColor } from '@/helpers/get-role-name-color';
 import { LocalStorageKey } from '@/helpers/storage';
 import { cn } from '@/lib/utils';
-import { UserStatus } from '@kurier/shared';
 import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { UserPopover } from '../user-popover';
@@ -22,13 +21,11 @@ type TUserProps = {
   userId: number;
   name: string;
   banned: boolean;
-  status?: UserStatus;
 };
 
-const User = memo(({ userId, name, banned, status }: TUserProps) => {
+const User = memo(({ userId, name, banned }: TUserProps) => {
   const roles = useUserRoles(userId);
   const nameColor = getRoleNameColor(roles);
-  const isOffline = (status ?? UserStatus.OFFLINE) === UserStatus.OFFLINE;
 
   return (
     <UserPopover userId={userId}>
@@ -37,14 +34,9 @@ const User = memo(({ userId, name, banned, status }: TUserProps) => {
         <span
           className={cn(
             'truncate text-sm',
-            banned && 'text-muted-foreground line-through',
-            isOffline && !banned && 'text-muted-foreground'
+            banned && 'text-muted-foreground line-through'
           )}
-          style={
-            !banned && !isOffline && nameColor
-              ? { color: nameColor }
-              : undefined
-          }
+          style={!banned && nameColor ? { color: nameColor } : undefined}
         >
           {name}
         </span>
@@ -117,7 +109,6 @@ const RightSidebar = memo(
                     userId={user.id}
                     name={getRenderedUsername(user)}
                     banned={user.banned}
-                    status={user.status}
                   />
                 ))}
               </div>

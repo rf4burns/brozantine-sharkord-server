@@ -10,12 +10,18 @@ import {
   TabsList,
   TabsTrigger
 } from '@kurier/ui';
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CustomEmojiTab } from './custom-emoji-tab';
-import { ALL_EMOJIS, searchEmojis, toTEmojiItem } from './emoji-data';
+import {
+  ALL_EMOJIS,
+  getEmojisByCategory,
+  searchEmojis,
+  toTEmojiItem
+} from './emoji-data';
 import { EmojiGrid } from './emoji-grid';
 import { NativeEmojiTab } from './native-emoji-tab';
+import { preloadEmojiImages, scheduleIdlePreload } from './preload-emojis';
 import { useRecentEmojis } from './use-recent-emojis';
 
 type TEmojiPickerProps = {
@@ -24,13 +30,18 @@ type TEmojiPickerProps = {
   defaultTab?: 'native' | 'custom';
 };
 
+const collectImageUrls = (emojis: TEmojiItem[]) =>
+  emojis
+    .map((emoji) => emoji.fallbackImage)
+    .filter((url): url is string => !!url);
+
 const EmojiPicker = memo(
   ({ children, onEmojiSelect, defaultTab = 'native' }: TEmojiPickerProps) => {
     const { t } = useTranslation('common');
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState('');
     const customEmojis = useCustomEmojis();
-    const { addRecent } = useRecentEmojis();
+    const { recentEmojis, addRecent } = useRecentEmojis();
 
     const convertedCustomEmojis = useMemo(
       () => customEmojis.map(toTEmojiItem),
@@ -48,6 +59,22 @@ const EmojiPicker = memo(
       () => (isSearching ? searchEmojis(allEmojis, search) : []),
       [isSearching, allEmojis, search]
     );
+
+    useEffect(() => {
+      if (!open) return;
+
+      const initialCategory =
+        recentEmojis.length > 0
+          ? recentEmojis
+          : getEmojisByCategory('people & body');
+
+      preloadEmojiImages([
+        ...collectImageUrls(initialCategory),
+        ...collectImageUrls(convertedCustomEmojis)
+      ]);
+
+      scheduleIdlePreload(collectImageUrls(ALL_EMOJIS));
+    }, [open, recentEmojis, convertedCustomEmojis]);
 
     const handleEmojiSelect = useCallback(
       (emoji: TEmojiItem) => {

@@ -52,7 +52,7 @@ const MessagesGroup = memo(
       group.length === 1 && !!firstMessage.replyToMessageId;
 
     const groupContent = (
-      <div className="flex min-w-0 max-w-dvw gap-1 pl-2 pt-2 pr-2">
+      <div className="flex min-w-0 max-w-dvw gap-3 pl-4 pt-2 pr-2">
         {isPluginMessage ? (
           <PluginAvatar
             name={pluginMetadata?.name}

@@ -1,7 +1,6 @@
 import type { TDialogBaseProps } from '@/components/dialogs/types';
 import { PaginatedList } from '@/components/paginated-list';
 import { jumpToMessage } from '@/features/server/actions';
-import { useOnEsc } from '@/hooks/use-on-esc';
 import type { TMessageJumpToTarget } from '@/types';
 import {
   Dialog,
@@ -12,9 +11,18 @@ import {
   Input,
   Spinner
 } from '@kurier/ui';
-import { memo, useCallback } from 'react';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type KeyboardEvent
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearch } from './hooks';
+import { SearchFiltersDropdown } from './search-filters-dropdown';
 import { SearchResultFileCard } from './search-result-file';
 import { SearchResultMessageCard } from './search-result-message';
 import type { TUnifiedSearchResult } from './types';
@@ -25,10 +33,46 @@ type TSearchDialogProps = TDialogBaseProps;
 
 const SearchDialog = memo(({ isOpen, close }: TSearchDialogProps) => {
   const { t } = useTranslation('dialogs');
-  useOnEsc(close);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const filtersKeyDownRef = useRef<
+    ((event: KeyboardEvent<HTMLInputElement>) => boolean) | null
+  >(null);
+
+  const [cursor, setCursor] = useState(0);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const { query, setQuery, loading, canSearch, unifiedResults } =
     useSearch(isOpen);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setCursor(0);
+      setFiltersOpen(false);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== 'Escape') {
+        return;
+      }
+
+      if (filtersOpen) {
+        event.preventDefault();
+        setFiltersOpen(false);
+
+        return;
+      }
+
+      close();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [close, filtersOpen]);
 
   const onJump = useCallback(
     (target: TMessageJumpToTarget) => {
@@ -37,6 +81,51 @@ const SearchDialog = memo(({ isOpen, close }: TSearchDialogProps) => {
     },
     [close]
   );
+
+  const syncCursor = useCallback(() => {
+    const next = inputRef.current?.selectionStart ?? query.length;
+
+    setCursor(next);
+  }, [query.length]);
+
+  const onQueryChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const nextQuery = event.target.value;
+
+      setQuery(nextQuery);
+      setCursor(event.target.selectionStart ?? nextQuery.length);
+      setFiltersOpen(true);
+    },
+    [setQuery]
+  );
+
+  const onFilterSelect = useCallback(
+    (nextQuery: string, nextCursor: number) => {
+      setQuery(nextQuery);
+      setCursor(nextCursor);
+    },
+    [setQuery]
+  );
+
+  const onInputKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLInputElement>) => {
+      const handled = filtersKeyDownRef.current?.(event) ?? false;
+
+      if (handled) {
+        return;
+      }
+
+      if (event.key === 'ArrowDown' && !filtersOpen) {
+        setFiltersOpen(true);
+      }
+    },
+    [filtersOpen]
+  );
+
+  const onInputFocus = useCallback(() => {
+    setFiltersOpen(true);
+    syncCursor();
+  }, [syncCursor]);
 
   return (
     <Dialog open={isOpen}>
@@ -49,13 +138,30 @@ const SearchDialog = memo(({ isOpen, close }: TSearchDialogProps) => {
           <DialogHeader className="border-b border-border bg-card/70 px-5 py-4 text-left">
             <DialogTitle className="text-base">{t('searchTitle')}</DialogTitle>
             <DialogDescription>{t('searchDesc')}</DialogDescription>
-            <div className="mt-3">
+            <div className="relative mt-3">
               <Input
+                ref={inputRef}
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={onQueryChange}
+                onKeyDown={onInputKeyDown}
+                onClick={syncCursor}
+                onKeyUp={syncCursor}
+                onSelect={syncCursor}
+                onFocus={onInputFocus}
                 placeholder={t('searchPlaceholder')}
                 autoFocus
                 className="h-10"
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <SearchFiltersDropdown
+                query={query}
+                cursor={cursor}
+                open={filtersOpen}
+                onOpenChange={setFiltersOpen}
+                onSelect={onFilterSelect}
+                inputRef={inputRef}
+                keyDownRef={filtersKeyDownRef}
               />
             </div>
           </DialogHeader>

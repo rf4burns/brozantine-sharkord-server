@@ -20,8 +20,14 @@ const isTextPresentation = (emoji: string): boolean => {
   );
 };
 
-// checks if the emoji should use the fallback image (if available) instead of the native emoji character
-const shouldUseFallbackImage = (emoji: TEmojiItem): boolean =>
-  !!emoji.fallbackImage;
+// use twemoji/fallback images for text-presentation glyphs; otherwise prefer
+// the native emoji character (matches browser rendering) and only fall back to
+// images when no emoji character is available
+const shouldUseFallbackImage = (emoji: TEmojiItem): boolean => {
+  if (!emoji.fallbackImage) return false;
+  if (!emoji.emoji) return true;
+
+  return isTextPresentation(emoji.emoji);
+};
 
 export { isTextPresentation, shouldUseFallbackImage, type TEmojiItem };

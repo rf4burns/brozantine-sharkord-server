@@ -159,19 +159,20 @@ const buildMemberListGroups = (
 ): TMemberListGroup[] => {
   const visibleUsers = users.filter((user) => !isDeletedUser(user));
 
-  // owner is never a member-list group; use the next highest hoisted role
-  const hoistedRoles = [...roles]
-    .filter(
-      (role) => role.hoist && !role.isDefault && role.id !== OWNER_ROLE_ID
-    )
+  // highest position first; owner never appears as a header
+  const displayRoles = [...roles]
+    .filter((role) => role.id !== OWNER_ROLE_ID)
     .sort((a, b) => b.position - a.position || a.id - b.id);
 
-  const getHighestHoistedRole = (user: TJoinedPublicUser) => {
-    const userHoistedRoles = hoistedRoles.filter((role) =>
+  // lowest rank (e.g. Untrusted) always stays visible, including offline
+  const lowestRole = displayRoles[displayRoles.length - 1];
+
+  const getHighestDisplayRole = (user: TJoinedPublicUser) => {
+    const userDisplayRoles = displayRoles.filter((role) =>
       user.roleIds.includes(role.id)
     );
 
-    return userHoistedRoles[0];
+    return userDisplayRoles[0];
   };
 
   const isOnline = (user: TJoinedPublicUser) =>
@@ -179,23 +180,34 @@ const buildMemberListGroups = (
 
   const groups: TMemberListGroup[] = [];
   let remaining = maxUsers;
+  const placedIds = new Set<number>();
 
   const takeUsers = (source: TJoinedPublicUser[]) => {
     const taken = source.slice(0, remaining);
     remaining -= taken.length;
+
+    for (const user of taken) {
+      placedIds.add(user.id);
+    }
+
     return taken;
   };
 
-  for (const role of hoistedRoles) {
-    if (remaining <= 0) break;
+  const addRoleGroup = (role: TJoinedRole) => {
+    if (remaining <= 0) return;
 
+    const isLowestRank = role.id === lowestRole?.id;
     const members = takeUsers(
-      visibleUsers.filter(
-        (user) => isOnline(user) && getHighestHoistedRole(user)?.id === role.id
-      )
+      visibleUsers.filter((user) => {
+        if (user.banned || getHighestDisplayRole(user)?.id !== role.id) {
+          return false;
+        }
+
+        return isLowestRank || isOnline(user);
+      })
     );
 
-    if (members.length === 0) continue;
+    if (members.length === 0) return;
 
     groups.push({
       id: `role-${role.id}`,
@@ -204,12 +216,35 @@ const buildMemberListGroups = (
       color: role.color,
       users: members
     });
+  };
+
+  // reserve lowest-rank members first so the cap cannot hide them
+  if (lowestRole) {
+    addRoleGroup(lowestRole);
   }
+
+  for (const role of displayRoles) {
+    if (role.id === lowestRole?.id) continue;
+    addRoleGroup(role);
+  }
+
+  // render highest rank → lowest rank
+  groups.sort((a, b) => {
+    const roleA = displayRoles.find((role) => `role-${role.id}` === a.id);
+    const roleB = displayRoles.find((role) => `role-${role.id}` === b.id);
+
+    if (!roleA || !roleB) return 0;
+
+    return roleB.position - roleA.position || roleA.id - roleB.id;
+  });
 
   if (remaining > 0) {
     const onlineUsers = takeUsers(
       visibleUsers.filter(
-        (user) => isOnline(user) && !getHighestHoistedRole(user)
+        (user) =>
+          isOnline(user) &&
+          !placedIds.has(user.id) &&
+          !getHighestDisplayRole(user)
       )
     );
 
@@ -225,7 +260,9 @@ const buildMemberListGroups = (
 
   if (remaining > 0) {
     const offlineUsers = takeUsers(
-      visibleUsers.filter((user) => !user.banned && !isOnline(user))
+      visibleUsers.filter(
+        (user) => !user.banned && !isOnline(user) && !placedIds.has(user.id)
+      )
     );
 
     if (offlineUsers.length > 0) {
@@ -239,7 +276,9 @@ const buildMemberListGroups = (
   }
 
   if (remaining > 0) {
-    const bannedUsers = takeUsers(visibleUsers.filter((user) => user.banned));
+    const bannedUsers = takeUsers(
+      visibleUsers.filter((user) => user.banned && !placedIds.has(user.id))
+    );
 
     if (bannedUsers.length > 0) {
       groups.push({

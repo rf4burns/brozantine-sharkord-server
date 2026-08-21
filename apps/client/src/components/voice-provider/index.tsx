@@ -34,8 +34,8 @@ import {
 } from '@/types';
 import {
   DEFAULT_BITRATE,
-  StreamKind,
   getTrpcError,
+  StreamKind,
   type ConsumerType,
   type TStreamQualityLayer,
   type TVoiceUserState

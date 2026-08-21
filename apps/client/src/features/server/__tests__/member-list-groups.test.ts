@@ -8,7 +8,8 @@ import { describe, expect, test } from 'bun:test';
 import { buildMemberListGroups } from '../helpers';
 
 const makeRole = (
-  overrides: Partial<TJoinedRole> & Pick<TJoinedRole, 'id' | 'name' | 'position'>
+  overrides: Partial<TJoinedRole> &
+    Pick<TJoinedRole, 'id' | 'name' | 'position'>
 ): TJoinedRole => ({
   color: '#ffffff',
   isPersistent: false,

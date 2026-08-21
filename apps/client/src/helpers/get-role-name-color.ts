@@ -3,8 +3,7 @@ import { OWNER_ROLE_ID, type TRole } from '@kurier/shared';
 const getRoleNameColor = (roles: TRole[]) => {
   const ranked = [...roles]
     .filter(
-      (role) =>
-        !role.isDefault && role.id !== OWNER_ROLE_ID && role.color
+      (role) => !role.isDefault && role.id !== OWNER_ROLE_ID && role.color
     )
     .sort((a, b) => b.position - a.position || a.id - b.id);
 

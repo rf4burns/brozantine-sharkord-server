@@ -190,7 +190,12 @@ const useVirtuosoChat = ({
   // Virtuoso startReached often does not re-fire when alignToBottom leaves
   // empty space above and there is no scrollbar.
   useEffect(() => {
-    if (fetching || !hasMore || messageCount === 0 || fillExhaustedRef.current) {
+    if (
+      fetching ||
+      !hasMore ||
+      messageCount === 0 ||
+      fillExhaustedRef.current
+    ) {
       return;
     }
 

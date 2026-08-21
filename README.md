@@ -1,6 +1,6 @@
 # Kurier
 
-Self-hosted messenger for small groups: text, voice, video, and screen share on your own box. Named for the imperial couriers of the Holy Roman Empire.
+Self-hosted messenger for small groups: text, voice, video, and screen share on your own box.
 
 This repo is the Bun monorepo: server (tRPC, SQLite, mediasoup) plus the React web client. It is a Brozantine fork of [Sharkord](https://github.com/Sharkord/sharkord), rebranded and extended for Kurier.
 

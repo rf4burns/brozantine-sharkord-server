@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { db } from '../../db';
 import { publishUser } from '../../db/publishers';
 import { getRole } from '../../db/queries/roles';
-import { userRoles } from '../../db/schema';
+import { userRoles, users } from '../../db/schema';
 import {
   assertCanManageRole,
   assertCanModerateUser
@@ -43,11 +43,24 @@ const addRoleRoute = protectedProcedure
     await assertCanModerateUser(ctx.userId, input.userId);
     await assertCanManageRole(ctx.userId, input.roleId);
 
-    const role = await getRole(input.roleId);
+    const [role, targetUser] = await Promise.all([
+      getRole(input.roleId),
+      db
+        .select({ id: users.id, name: users.name })
+        .from(users)
+        .where(eq(users.id, input.userId))
+        .limit(1)
+        .get()
+    ]);
 
     invariant(role, {
       code: 'NOT_FOUND',
       message: 'Role not found'
+    });
+
+    invariant(targetUser, {
+      code: 'NOT_FOUND',
+      message: 'User not found'
     });
 
     await db.insert(userRoles).values({
@@ -58,11 +71,12 @@ const addRoleRoute = protectedProcedure
 
     publishUser(input.userId, 'update');
 
-    enqueueActivityLog({
+    await enqueueActivityLog({
       type: ActivityLogType.USER_ROLE_ADDED,
       userId: ctx.userId,
       details: {
         targetUserId: input.userId,
+        targetUsername: targetUser.name,
         roleId: input.roleId,
         roleName: role.name,
         assignedBy: ctx.userId

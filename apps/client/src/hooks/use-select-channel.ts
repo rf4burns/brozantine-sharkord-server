@@ -45,10 +45,10 @@ const useSelectChannel = () => {
   );
 
   return useCallback(
-    async (channelId: number) => {
+    async (channelId: number): Promise<boolean> => {
       const channel = channelByIdSelector(store.getState(), channelId);
 
-      if (!channel) return;
+      if (!channel) return false;
 
       if (channel.type !== ChannelType.VOICE) {
         setSelectedChannelId(channel.id);
@@ -57,26 +57,27 @@ const useSelectChannel = () => {
           channel.id.toString()
         );
 
-        return;
+        return true;
       }
 
       if (currentVoiceChannelId === channel.id) {
         setSelectedChannelId(channel.id);
-        return;
+        return true;
       }
 
       const joinImmediately =
         !!currentVoiceChannelId || !!devices.skipVoiceDeviceCheck;
 
       if (joinImmediately) {
-        await joinAndInit(channel.id);
-        return;
+        return joinAndInit(channel.id);
       }
 
       openDialog(Dialog.VOICE_DEVICE_CHECK, {
         channelId: channel.id,
         onJoin: () => joinAndInit(channel.id)
       });
+
+      return true;
     },
     [currentVoiceChannelId, devices.skipVoiceDeviceCheck, joinAndInit]
   );

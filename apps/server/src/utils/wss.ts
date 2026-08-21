@@ -251,6 +251,10 @@ const createContext = async ({
     usersIpMap.set(userId, ip);
   };
 
+  // restore voice channel if this user is still in a runtime (e.g. another
+  // tab kept the session alive while this socket reconnects)
+  const existingVoiceRuntime = VoiceRuntime.findRuntimeByUserId(decodedUser.id);
+
   return {
     pubsub,
     token,
@@ -258,7 +262,7 @@ const createContext = async ({
     authenticated: false,
     userId: decodedUser.id,
     handshakeHash: '',
-    currentVoiceChannelId: undefined,
+    currentVoiceChannelId: existingVoiceRuntime?.id,
     hasPermission,
     needsPermission,
     hasAnyPermission,

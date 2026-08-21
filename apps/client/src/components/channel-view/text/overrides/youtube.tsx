@@ -51,12 +51,12 @@ const YoutubeOverride = memo(({ videoId }: TYoutubeOverrideProps) => {
         <video
           src={src}
           controls
-          className="aspect-video w-150 max-w-full bg-black"
+          className="aspect-video w-full max-w-[560px] bg-black"
           preload="metadata"
         />
       )}
       {!src && !error && (
-        <div className="aspect-video w-150 max-w-full bg-muted/40" />
+        <div className="aspect-video w-full max-w-[560px] bg-muted/40" />
       )}
     </OverrideLayout>
   );

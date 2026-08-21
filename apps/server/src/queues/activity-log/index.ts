@@ -29,22 +29,30 @@ const enqueueActivityLog = <T extends ActivityLogType>({
 }: TEnqueueActivityLog<T>) => {
   const date = Date.now();
 
-  activityLogQueue.push(async (callback) => {
-    const start = performance.now();
+  return new Promise<void>((resolve, reject) => {
+    activityLogQueue.push(async (callback) => {
+      const start = performance.now();
 
-    await db.insert(activityLog).values({
-      userId,
-      type: type,
-      details,
-      ip: ip || (userId != null ? getUserIp(userId) : undefined) || null,
-      createdAt: date
+      try {
+        await db.insert(activityLog).values({
+          userId,
+          type: type,
+          details,
+          ip: ip || (userId != null ? getUserIp(userId) : undefined) || null,
+          createdAt: date
+        });
+
+        logger.debug(
+          `${chalk.dim('[Activity Logger]')} Logged activity of type ${type} for user ${userId} in ${(performance.now() - start).toFixed(2)} ms`
+        );
+
+        resolve();
+        callback?.();
+      } catch (error) {
+        reject(error);
+        callback?.(error as Error);
+      }
     });
-
-    logger.debug(
-      `${chalk.dim('[Activity Logger]')} Logged activity of type ${type} for user ${userId} in ${(performance.now() - start).toFixed(2)} ms`
-    );
-
-    callback?.();
   });
 };
 

@@ -5,7 +5,7 @@ describe('twemoji', () => {
   test('encodes a simple emoji', () => {
     expect(toTwemojiCodepoint('😀')).toBe('1f600');
     expect(getTwemojiUrl('😀')).toContain('/1f600.png');
-    expect(getTwemojiUrl('😀')).toContain('jdecked/twemoji@15.1.0');
+    expect(getTwemojiUrl('😀')).toContain('jdecked/twemoji@15.1.1');
   });
 
   test('strips variation selectors for standalone emoji', () => {

@@ -9,7 +9,7 @@ type TVideoPlayerProps = {
 
 const VideoPlayer = memo(({ url, className }: TVideoPlayerProps) => {
   return (
-    <div className={cn('aspect-video w-150 max-w-full', className)}>
+    <div className={cn('aspect-video w-full max-w-[560px]', className)}>
       <ReactPlayer
         src={url}
         controls

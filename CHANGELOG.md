@@ -5,6 +5,25 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
 
+## [0.0.30] - 2026-08-21
+
+### Added
+
+- Audit log entries name the target member for kicks, bans, mutes, deafens, role changes, nickname updates, and voice moves.
+- Role-colored, clickable usernames in more places (search results, audit-related views, and related UI).
+
+### Changed
+
+- Anyone with Move Members can move any voice member (no longer limited by role rank).
+- Unicode emoji in the picker, compose box, messages, and reactions consistently use Twemoji images.
+
+### Fixed
+
+- After joining or being moved into a voice channel, other participants' audio connects more reliably.
+- Being moved into a voice channel shows an error toast when the client cannot follow the move.
+- GIF embeds no longer also show a duplicate link preview card.
+- Dragging a voice member still works when the name has a profile popover.
+
 ## [0.0.29] - 2026-08-21
 
 ### Changed

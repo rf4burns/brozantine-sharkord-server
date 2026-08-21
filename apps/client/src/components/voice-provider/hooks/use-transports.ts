@@ -424,6 +424,13 @@ const useTransports = ({
         return;
       }
 
+      const existingConsumer = consumers.current[remoteId]?.[kind];
+
+      if (existingConsumer && !existingConsumer.closed) {
+        logVoice('Already consuming remote producer', { remoteId, kind });
+        return;
+      }
+
       consumeOperationsInProgress.current.add(operationKey);
 
       try {
@@ -457,12 +464,12 @@ const useTransports = ({
           consumers.current[remoteId] = {};
         }
 
-        const existingConsumer = consumers.current[remoteId][consumerKind];
+        const consumerForKind = consumers.current[remoteId][consumerKind];
 
-        if (existingConsumer && !existingConsumer.closed) {
+        if (consumerForKind && !consumerForKind.closed) {
           logVoice('Closing existing consumer before creating new one');
 
-          existingConsumer.close();
+          consumerForKind.close();
           delete consumers.current[remoteId][consumerKind];
         }
 

@@ -90,7 +90,7 @@ const PaginatedTableComponent = <T,>({
 
       <div className="rounded-md border">
         <div
-          className={`grid ${gridCols} gap-4 border-b bg-muted/50 px-4 py-3 text-sm font-medium text-muted-foreground`}
+          className={`grid ${gridCols} gap-4 border-b bg-muted/50 px-4 py-3.5 text-sm font-medium text-muted-foreground`}
         >
           {headerColumns}
         </div>
@@ -113,7 +113,7 @@ const PaginatedTableComponent = <T,>({
       </div>
 
       <div className="flex justify-between items-center">
-        <div className="text-xs text-muted-foreground">
+        <div className="text-sm text-muted-foreground">
           {filteredItems.length === 0 ? (
             'No items found'
           ) : (

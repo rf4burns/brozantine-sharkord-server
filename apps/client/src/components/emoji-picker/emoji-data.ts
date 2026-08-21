@@ -17,14 +17,43 @@ const EMOJI_CATEGORIES = [
 
 type EmojiCategoryId = (typeof EMOJI_CATEGORIES)[number]['id'];
 
-const toTEmojiItem = (emoji: EmojiItem): TEmojiItem => ({
-  name: emoji.name,
-  shortcodes: emoji.shortcodes,
+const withTwemojiFallback = <
+  T extends { emoji?: string; fallbackImage?: string }
+>(
+  emoji: T
+): T => ({
+  ...emoji,
   fallbackImage:
     (emoji.emoji ? getTwemojiUrl(emoji.emoji) : undefined) ??
-    emoji.fallbackImage,
-  emoji: emoji.emoji
+    emoji.fallbackImage
 });
+
+const toTEmojiItem = (emoji: EmojiItem): TEmojiItem => {
+  const withTwemoji = withTwemojiFallback(emoji);
+
+  return {
+    name: withTwemoji.name,
+    shortcodes: withTwemoji.shortcodes,
+    fallbackImage: withTwemoji.fallbackImage,
+    emoji: withTwemoji.emoji
+  };
+};
+
+// full TipTap catalog with Twemoji image URLs (matches native client style)
+const TWEMOJI_GITHUB_EMOJIS = gitHubEmojis.map(withTwemojiFallback);
+
+const emojiByNameOrShortcode = new Map<string, EmojiItem>();
+
+for (const emoji of TWEMOJI_GITHUB_EMOJIS) {
+  emojiByNameOrShortcode.set(emoji.name, emoji);
+
+  for (const shortcode of emoji.shortcodes) {
+    emojiByNameOrShortcode.set(shortcode, emoji);
+  }
+}
+
+const resolveUnicodeEmojiImage = (name: string): string | undefined =>
+  emojiByNameOrShortcode.get(name)?.fallbackImage;
 
 const processEmojis = () => {
   const grouped: Record<string, TEmojiItem[]> = {};
@@ -82,8 +111,11 @@ export {
   getEmojisByCategory,
   GRID_COLS,
   GROUPED_EMOJIS,
+  resolveUnicodeEmojiImage,
   ROW_HEIGHT,
   searchEmojis,
   toTEmojiItem,
+  TWEMOJI_GITHUB_EMOJIS,
+  withTwemojiFallback,
   type EmojiCategoryId
 };

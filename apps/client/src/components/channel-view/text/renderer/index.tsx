@@ -14,7 +14,10 @@ import { toast } from 'sonner';
 import { FileCard } from '../file-card';
 import { MessageReactions } from '../message-reactions';
 import { getIsEmojiOnly, getParsedMessageHtml } from './content-cache';
-import { extractMessageOpenGraph } from './helpers';
+import {
+  extractMessageOpenGraph,
+  isPreviewableMediaExtension
+} from './helpers';
 import { Media } from './media';
 import { extractMessageMedia } from './media-cache';
 import { MessageRenderFallback } from './message-render-fallback';
@@ -72,6 +75,13 @@ const MessageRenderer = memo(
       () => extractMessageOpenGraph(message, allMedia),
       [message, allMedia]
     );
+    const fileCards = useMemo(
+      () =>
+        message.files.filter(
+          (file) => !isPreviewableMediaExtension(file.extension)
+        ),
+      [message.files]
+    );
     const showContentBlock = messageHtml != null || !!message.editedAt;
 
     return (
@@ -128,9 +138,9 @@ const MessageRenderer = memo(
           />
         )}
 
-        {message.files.length > 0 && !disableFiles && (
+        {fileCards.length > 0 && !disableFiles && (
           <div className="flex gap-1 flex-wrap">
-            {message.files.map((file) => (
+            {fileCards.map((file) => (
               <FileCard
                 key={file.id}
                 name={file.originalName}

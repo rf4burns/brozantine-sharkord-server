@@ -24,8 +24,19 @@ const banRoute = protectedProcedure
       message: 'You cannot ban yourself.'
     });
 
-    await assertCanModerateUser(ctx.userId, input.userId);
+    const targetUser = await db
+      .select({ id: users.id, name: users.name })
+      .from(users)
+      .where(eq(users.id, input.userId))
+      .limit(1)
+      .get();
 
+    invariant(targetUser, {
+      code: 'NOT_FOUND',
+      message: 'User not found'
+    });
+
+    await assertCanModerateUser(ctx.userId, input.userId);
     const userWs = ctx.getUserWs(input.userId);
 
     if (userWs) {
@@ -43,12 +54,14 @@ const banRoute = protectedProcedure
 
     publishUser(input.userId, 'update');
 
-    enqueueActivityLog({
+    await enqueueActivityLog({
       type: ActivityLogType.USER_BANNED,
-      userId: input.userId,
+      userId: ctx.userId,
       details: {
         reason: input.reason,
-        bannedBy: ctx.userId
+        bannedBy: ctx.userId,
+        targetUserId: input.userId,
+        targetUsername: targetUser.name
       }
     });
   });

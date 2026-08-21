@@ -11,6 +11,7 @@ import {
   UserStatus
 } from '@kurier/shared';
 import {
+  Button,
   IconButton,
   Popover,
   PopoverContent,
@@ -128,6 +129,13 @@ const UserPopover = memo(({ userId, children }: TUserPopoverProps) => {
             )}
           </div>
 
+          {showDmButton && (
+            <Button className="w-full" onClick={onDirectMessageClick}>
+              <MessageSquare className="h-4 w-4" />
+              {t('message')}
+            </Button>
+          )}
+
           {user.bio && (
             <div>
               <div className="mb-1 text-[11px] font-bold uppercase tracking-wide text-faint">
@@ -162,16 +170,6 @@ const UserPopover = memo(({ userId, children }: TUserPopoverProps) => {
             </p>
 
             <div className="flex items-center gap-2">
-              {showDmButton && (
-                <IconButton
-                  icon={MessageSquare}
-                  variant="ghost"
-                  size="sm"
-                  title={t('directMessage')}
-                  onClick={onDirectMessageClick}
-                />
-              )}
-
               {!isDeleted && (
                 <MemberVoiceModeration userId={userId} variant="icons" />
               )}

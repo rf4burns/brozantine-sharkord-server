@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { db } from '../../db';
 import { publishUser } from '../../db/publishers';
 import { getRole } from '../../db/queries/roles';
-import { userRoles } from '../../db/schema';
+import { userRoles, users } from '../../db/schema';
 import {
   assertCanManageRole,
   assertCanModerateUser
@@ -44,7 +44,20 @@ const removeRoleRoute = protectedProcedure
       message: 'User does not have this role'
     });
 
-    const role = await getRole(input.roleId);
+    const [role, targetUser] = await Promise.all([
+      getRole(input.roleId),
+      db
+        .select({ id: users.id, name: users.name })
+        .from(users)
+        .where(eq(users.id, input.userId))
+        .limit(1)
+        .get()
+    ]);
+
+    invariant(targetUser, {
+      code: 'NOT_FOUND',
+      message: 'User not found'
+    });
 
     await db
       .delete(userRoles)
@@ -57,11 +70,12 @@ const removeRoleRoute = protectedProcedure
 
     publishUser(input.userId, 'update');
 
-    enqueueActivityLog({
+    await enqueueActivityLog({
       type: ActivityLogType.USER_ROLE_REMOVED,
       userId: ctx.userId,
       details: {
         targetUserId: input.userId,
+        targetUsername: targetUser.name,
         roleId: input.roleId,
         roleName: role?.name ?? '',
         removedBy: ctx.userId

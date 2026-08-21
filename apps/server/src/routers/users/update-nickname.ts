@@ -29,7 +29,7 @@ const updateNicknameRoute = protectedProcedure
     await ctx.needsPermission(Permission.MANAGE_NICKNAMES);
 
     const targetUser = await db
-      .select({ id: users.id })
+      .select({ id: users.id, name: users.name })
       .from(users)
       .where(eq(users.id, input.userId))
       .limit(1)
@@ -54,11 +54,12 @@ const updateNicknameRoute = protectedProcedure
 
     publishUser(input.userId, 'update');
 
-    enqueueActivityLog({
+    await enqueueActivityLog({
       type: ActivityLogType.USER_NICKNAME_UPDATED,
       userId: ctx.userId,
       details: {
         targetUserId: input.userId,
+        targetUsername: targetUser.name,
         updatedBy: ctx.userId,
         nickname
       }

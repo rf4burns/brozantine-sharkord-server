@@ -1,10 +1,16 @@
-import { ChannelPermission, Permission, StreamKind } from '@kurier/shared';
+import {
+  ActivityLogType,
+  ChannelPermission,
+  Permission,
+  StreamKind
+} from '@kurier/shared';
 import { describe, expect, mock, test } from 'bun:test';
 import { and, eq } from 'drizzle-orm';
 import type { Producer } from 'mediasoup/types';
 import { initTest } from '../../__tests__/helpers';
 import { tdb } from '../../__tests__/setup';
 import {
+  activityLog,
   channelRolePermissions,
   rolePermissions,
   roles,
@@ -145,6 +151,23 @@ describe('voice router', () => {
             channelId: PRIVATE_VOICE_CHANNEL_ID
           })
         ).resolves.toBeUndefined();
+
+        const moveLog = await tdb
+          .select()
+          .from(activityLog)
+          .where(eq(activityLog.type, ActivityLogType.USER_MOVED))
+          .get();
+
+        expect(moveLog?.userId).toBe(1);
+        expect(moveLog?.details).toMatchObject({
+          movedBy: 1,
+          targetUserId: 4,
+          targetUsername: 'User B',
+          fromChannelId: 2,
+          fromChannelName: 'Voice',
+          toChannelId: PRIVATE_VOICE_CHANNEL_ID,
+          toChannelName: 'Private Voice'
+        });
       } finally {
         await originRuntime.destroy();
       }
@@ -187,6 +210,43 @@ describe('voice router', () => {
         await expect(movedCaller.voice.join(joinInput)).rejects.toThrow(
           'Insufficient channel permissions'
         );
+      } finally {
+        await originRuntime.destroy();
+        await destinationRuntime.destroy();
+      }
+    });
+
+    test('should keep the move grant when join fails because the user is still in voice', async () => {
+      const { caller: ownerCaller } = await initTest(1);
+      const { caller: movedCaller } = await initTest(4);
+
+      const originRuntime = new VoiceRuntime(2);
+      const destinationRuntime = new VoiceRuntime(PRIVATE_VOICE_CHANNEL_ID);
+
+      await destinationRuntime.init();
+
+      originRuntime.addUser(4, { micMuted: false, soundMuted: false });
+
+      const joinInput = {
+        channelId: PRIVATE_VOICE_CHANNEL_ID,
+        state: { micMuted: false, soundMuted: false }
+      };
+
+      try {
+        await ownerCaller.voice.moveUser({
+          userId: 4,
+          channelId: PRIVATE_VOICE_CHANNEL_ID
+        });
+
+        await expect(movedCaller.voice.join(joinInput)).rejects.toThrow(
+          'User already in a voice channel'
+        );
+
+        originRuntime.removeUser(4);
+
+        const result = await movedCaller.voice.join(joinInput);
+
+        expect(result.routerRtpCapabilities).toBeDefined();
       } finally {
         await originRuntime.destroy();
         await destinationRuntime.destroy();
@@ -238,6 +298,54 @@ describe('voice router', () => {
         ).rejects.toThrow('User is not in a voice channel');
       } finally {
         await dmRuntime.destroy();
+      }
+    });
+
+    test('should reject when moving yourself', async () => {
+      const { caller } = await initTest(1);
+
+      await expect(
+        caller.voice.moveUser({ userId: 1, channelId: 2 })
+      ).rejects.toThrow('You cannot move yourself.');
+    });
+
+    test('should allow moving equal or higher ranked members', async () => {
+      await tdb.insert(rolePermissions).values({
+        roleId: 2,
+        permission: Permission.MOVE_MEMBERS,
+        createdAt: Date.now()
+      });
+
+      const { caller } = await initTest(2);
+
+      const peerRuntime = new VoiceRuntime(PRIVATE_VOICE_CHANNEL_ID);
+
+      peerRuntime.addUser(3, { micMuted: false, soundMuted: false });
+
+      try {
+        await expect(
+          caller.voice.moveUser({
+            userId: 3,
+            channelId: 2
+          })
+        ).resolves.toBeUndefined();
+      } finally {
+        await peerRuntime.destroy();
+      }
+
+      const ownerRuntime = new VoiceRuntime(PRIVATE_VOICE_CHANNEL_ID);
+
+      ownerRuntime.addUser(1, { micMuted: false, soundMuted: false });
+
+      try {
+        await expect(
+          caller.voice.moveUser({
+            userId: 1,
+            channelId: 2
+          })
+        ).resolves.toBeUndefined();
+      } finally {
+        await ownerRuntime.destroy();
       }
     });
   });

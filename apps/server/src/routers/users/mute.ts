@@ -26,7 +26,7 @@ const muteRoute = rateLimitedProcedure(protectedProcedure, {
     await ctx.needsPermission(Permission.MUTE_MEMBERS);
 
     const targetUser = await db
-      .select({ id: users.id })
+      .select({ id: users.id, name: users.name })
       .from(users)
       .where(eq(users.id, input.userId))
       .limit(1)
@@ -51,16 +51,24 @@ const muteRoute = rateLimitedProcedure(protectedProcedure, {
     publishUser(input.userId, 'update');
 
     if (input.muted) {
-      enqueueActivityLog({
+      await enqueueActivityLog({
         type: ActivityLogType.USER_MUTED,
         userId: ctx.userId,
-        details: { targetUserId: input.userId, mutedBy: ctx.userId }
+        details: {
+          targetUserId: input.userId,
+          targetUsername: targetUser.name,
+          mutedBy: ctx.userId
+        }
       });
     } else {
-      enqueueActivityLog({
+      await enqueueActivityLog({
         type: ActivityLogType.USER_UNMUTED,
         userId: ctx.userId,
-        details: { targetUserId: input.userId, unmutedBy: ctx.userId }
+        details: {
+          targetUserId: input.userId,
+          targetUsername: targetUser.name,
+          unmutedBy: ctx.userId
+        }
       });
     }
   });

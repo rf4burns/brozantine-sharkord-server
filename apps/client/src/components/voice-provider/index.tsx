@@ -517,7 +517,8 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
       return;
     }
 
-    // server already removed the mediasoup producer; drop the local zombie
+    // server already removed the mediasoup producer; drop the local zombie.
+    // @close uses producer identity so a later recreate is not cleared/closed.
     localAudioProducer.current = undefined;
 
     if (!producer.closed) {
@@ -598,7 +599,7 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
 
   const produceLocalAudio = useCallback(
     async (track: MediaStreamTrack) => {
-      localAudioProducer.current = await producerTransport.current?.produce({
+      const producer = await producerTransport.current?.produce({
         track,
         // we own mic track lifecycle; closing the producer must not stop it
         stopTracks: false,
@@ -612,11 +613,22 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
         appData: { kind: StreamKind.AUDIO }
       });
 
+      if (!producer) {
+        return;
+      }
+
+      localAudioProducer.current = producer;
+
       logVoice('Microphone audio producer created', {
-        producer: localAudioProducer.current
+        producer
       });
 
-      localAudioProducer.current?.on('@close', async () => {
+      producer.on('@close', async () => {
+        // ignore stale closes after server mute/unmute recreated the producer
+        if (localAudioProducer.current !== producer) {
+          return;
+        }
+
         logVoice('Audio producer closed');
         localAudioProducer.current = undefined;
 
@@ -823,7 +835,11 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
 
     const existingTrack = transmitMicrophoneTrackRef.current;
 
-    if (existingTrack && producerTransport.current) {
+    if (
+      existingTrack &&
+      existingTrack.readyState !== 'ended' &&
+      producerTransport.current
+    ) {
       await produceLocalAudio(existingTrack);
       syncTransmitMicrophoneTrackState();
       return;
@@ -1654,11 +1670,13 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
 
   useVoiceEvents({
     consume,
+    consumeExistingProducers,
     removeRemoteUserStream,
     removeExternalStreamTrack,
     removeExternalStream,
     clearRemoteUserStreamsForUser,
-    rtpCapabilities: deviceRtpCapabilities.current
+    isConnected: connectionStatus === ConnectionStatus.CONNECTED,
+    rtpCapabilitiesRef: deviceRtpCapabilities
   });
 
   useEffect(() => {

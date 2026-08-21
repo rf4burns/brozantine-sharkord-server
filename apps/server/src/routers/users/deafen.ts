@@ -26,7 +26,7 @@ const deafenRoute = rateLimitedProcedure(protectedProcedure, {
     await ctx.needsPermission(Permission.DEAFEN_MEMBERS);
 
     const targetUser = await db
-      .select({ id: users.id })
+      .select({ id: users.id, name: users.name })
       .from(users)
       .where(eq(users.id, input.userId))
       .limit(1)
@@ -53,16 +53,24 @@ const deafenRoute = rateLimitedProcedure(protectedProcedure, {
     publishUser(input.userId, 'update');
 
     if (input.deafened) {
-      enqueueActivityLog({
+      await enqueueActivityLog({
         type: ActivityLogType.USER_DEAFENED,
         userId: ctx.userId,
-        details: { targetUserId: input.userId, deafenedBy: ctx.userId }
+        details: {
+          targetUserId: input.userId,
+          targetUsername: targetUser.name,
+          deafenedBy: ctx.userId
+        }
       });
     } else {
-      enqueueActivityLog({
+      await enqueueActivityLog({
         type: ActivityLogType.USER_UNDEAFENED,
         userId: ctx.userId,
-        details: { targetUserId: input.userId, undeafenedBy: ctx.userId }
+        details: {
+          targetUserId: input.userId,
+          targetUsername: targetUser.name,
+          undeafenedBy: ctx.userId
+        }
       });
     }
   });

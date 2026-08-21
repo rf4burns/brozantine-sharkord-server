@@ -2,6 +2,7 @@ import { PaginatedTable } from '@/components/paginated-table';
 import type { TJoinedUser } from '@kurier/shared';
 import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { USERS_TABLE_GRID_COLS } from './helpers';
 import { TableUser } from './table-user';
 
 type TUsersTableProps = {
@@ -36,7 +37,7 @@ const UsersTable = memo(({ users, refetch }: TUsersTableProps) => {
           <div>{t('usersActionsCol')}</div>
         </>
       }
-      gridCols="grid-cols-[60px_1fr_120px_120px_120px_80px_50px]"
+      gridCols={USERS_TABLE_GRID_COLS}
       itemsPerPage={8}
       searchPlaceholder={t('searchUsersPlaceholder')}
       emptyMessage={t('noUsersFound')}

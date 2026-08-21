@@ -135,6 +135,108 @@ const extractUrlsFromHtml = (html: string): string[] => {
 const extractEmbeddableGifUrls = (html: string): string[] =>
   extractUrlsFromHtml(html).filter(isEmbeddableGifUrl);
 
+type TGifMessageLike = {
+  content?: string | null;
+  metadata?: Array<{
+    kind?: string;
+    mediaType?: string;
+    url?: string;
+    images?: string[];
+  } | null> | null;
+};
+
+const collectGifUrlsForMessage = (message: TGifMessageLike): string[] => {
+  const out: string[] = [];
+  const seen = new Set<string>();
+
+  const add = (url: string | null | undefined) => {
+    if (!isEmbeddableGifUrl(url)) return;
+
+    const cleaned = cleanUrl(url!) ?? url!;
+    const key = normalizeGifUrl(cleaned);
+
+    if (seen.has(key)) return;
+
+    seen.add(key);
+    out.push(cleaned);
+  };
+
+  for (const url of extractEmbeddableGifUrls(message.content ?? '')) {
+    add(url);
+  }
+
+  for (const entry of message.metadata ?? []) {
+    if (!entry) continue;
+
+    const images = entry.images ?? [];
+
+    for (const imageUrl of images) {
+      add(imageUrl);
+    }
+
+    add(entry.url);
+
+    if (entry.mediaType === 'image' || entry.kind === 'media') {
+      add(entry.images?.[0] ?? entry.url);
+    }
+  }
+
+  return out;
+};
+
+type TEmbedCoverLike = {
+  url?: string;
+  imageUrl?: string;
+  images?: string[];
+  mediaType?: string;
+  kind?: string;
+};
+
+const getEmbedImageUrl = (embed: TEmbedCoverLike): string | undefined => {
+  if (embed.imageUrl) return embed.imageUrl;
+
+  if (embed.images?.length) return embed.images[0];
+
+  if (embed.mediaType === 'image' && embed.url && embed.url.length > 0) {
+    return embed.url;
+  }
+
+  return undefined;
+};
+
+const embedCoveredByGifs = (
+  embed: TEmbedCoverLike,
+  gifMediaUrls: string[]
+): boolean => {
+  if (gifMediaUrls.length === 0) return false;
+
+  const norms = new Set(gifMediaUrls.map(normalizeGifUrl));
+  const imageUrl = getEmbedImageUrl(embed);
+
+  for (const candidate of [embed.url, imageUrl]) {
+    if (candidate && norms.has(normalizeGifUrl(candidate))) {
+      return true;
+    }
+  }
+
+  if (
+    isGifProviderPage(embed.url) ||
+    isEmbeddableGifUrl(embed.url) ||
+    isEmbeddableGifUrl(imageUrl)
+  ) {
+    return true;
+  }
+
+  if (
+    embed.mediaType === 'image' &&
+    isEmbeddableGifUrl(imageUrl ?? embed.url)
+  ) {
+    return true;
+  }
+
+  return false;
+};
+
 const urlsToHideFromHtml = (
   html: string,
   gifMediaUrls: string[]
@@ -202,14 +304,19 @@ const isVisuallyEmptyHtml = (html: string): boolean => {
   return text.length === 0;
 };
 
-const getDisplayHtmlWithoutGifs = (html: string): string => {
-  const gifs = extractEmbeddableGifUrls(html);
+const getDisplayHtmlWithoutGifs = (
+  html: string,
+  gifMediaUrls?: string[]
+): string => {
+  const gifs = gifMediaUrls ?? extractEmbeddableGifUrls(html);
   const hide = urlsToHideFromHtml(html, gifs);
 
   return stripUrlsFromHtml(html, hide);
 };
 
 export {
+  collectGifUrlsForMessage,
+  embedCoveredByGifs,
   extractEmbeddableGifUrls,
   getDisplayHtmlWithoutGifs,
   isEmbeddableGifUrl,

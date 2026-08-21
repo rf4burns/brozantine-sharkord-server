@@ -1,4 +1,4 @@
-const TWEMOJI_VERSION = '15.1.0';
+const TWEMOJI_VERSION = '15.1.1';
 const TWEMOJI_BASE = `https://cdn.jsdelivr.net/gh/jdecked/twemoji@${TWEMOJI_VERSION}/assets/72x72`;
 
 // text-default bases that keep FE0F in Twemoji filenames when followed by ZWJ

@@ -129,7 +129,9 @@ const ControlsBar = memo(({ channelId }: TControlsBarProps) => {
             'pointer-events-auto text-white shadow-xl transition-all',
             'bg-[#ec4245] hover:bg-[#da373c]'
           )}
-          onClick={() => leaveVoice()}
+          onClick={() => {
+            void leaveVoice().catch(() => undefined);
+          }}
           aria-label="Disconnect"
         >
           <PhoneOff className="size-4" fill="currentColor" />

@@ -132,9 +132,9 @@ const Voice = memo(
     return (
       <div
         ref={dropZoneRef}
-        onDragOver={handleDragOver}
+        onDragOverCapture={handleDragOver}
         onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
+        onDropCapture={handleDrop}
         className={cn('rounded-[4px]', {
           'ring-1 ring-primary bg-accent/40': isDragOver
         })}

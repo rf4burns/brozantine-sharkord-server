@@ -18,12 +18,22 @@ const unbanRoute = protectedProcedure
     await ctx.needsPermission(Permission.BAN_MEMBERS);
 
     const targetUser = await db
-      .select({ deleted: users.deleted })
+      .select({
+        id: users.id,
+        name: users.name,
+        deleted: users.deleted
+      })
       .from(users)
       .where(eq(users.id, input.userId))
+      .limit(1)
       .get();
 
-    invariant(!targetUser?.deleted, {
+    invariant(targetUser, {
+      code: 'NOT_FOUND',
+      message: 'User not found'
+    });
+
+    invariant(!targetUser.deleted, {
       code: 'BAD_REQUEST',
       message: 'Cannot unban a deleted user.'
     });
@@ -39,11 +49,13 @@ const unbanRoute = protectedProcedure
 
     publishUser(input.userId, 'update');
 
-    enqueueActivityLog({
+    await enqueueActivityLog({
       type: ActivityLogType.USER_UNBANNED,
-      userId: input.userId,
+      userId: ctx.userId,
       details: {
-        unbannedBy: ctx.userId
+        unbannedBy: ctx.userId,
+        targetUserId: input.userId,
+        targetUsername: targetUser.name
       }
     });
   });

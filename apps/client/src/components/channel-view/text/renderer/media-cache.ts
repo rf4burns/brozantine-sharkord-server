@@ -6,7 +6,7 @@ import {
   type TJoinedMessage,
   type TMessageMetadata
 } from '@kurier/shared';
-import { extractEmbeddableGifUrls, normalizeGifUrl } from './gif-urls';
+import { collectGifUrlsForMessage, normalizeGifUrl } from './gif-urls';
 import { normalizeComparableUrl } from './helpers';
 import type { TFoundMedia } from './types';
 
@@ -139,13 +139,13 @@ const extractMessageMedia = (message: TJoinedMessage): TFoundMedia[] => {
     })
     .filter((media) => !!media) as TFoundMedia[];
 
-  const gifFromContent: TFoundMedia[] = extractEmbeddableGifUrls(
-    message.content ?? ''
-  ).map((url) => ({
-    key: getStableMediaKey(mediaKeyCounts, `gif:${normalizeGifUrl(url)}`),
-    type: 'image' as const,
-    url
-  }));
+  const gifFromContent: TFoundMedia[] = collectGifUrlsForMessage(message).map(
+    (url) => ({
+      key: getStableMediaKey(mediaKeyCounts, `gif:${normalizeGifUrl(url)}`),
+      type: 'image' as const,
+      url
+    })
+  );
 
   trimMediaCache();
 

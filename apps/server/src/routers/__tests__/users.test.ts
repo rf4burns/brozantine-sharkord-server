@@ -1,9 +1,15 @@
-import { OWNER_ROLE_ID, Permission, type TTempFile } from '@kurier/shared';
+import {
+  ActivityLogType,
+  OWNER_ROLE_ID,
+  Permission,
+  type TTempFile
+} from '@kurier/shared';
 import { describe, expect, test } from 'bun:test';
 import { and, eq } from 'drizzle-orm';
 import { initTest, uploadFile } from '../../__tests__/helpers';
 import { tdb } from '../../__tests__/setup';
 import {
+  activityLog,
   channels,
   emojis,
   files,
@@ -184,6 +190,20 @@ describe('users router', () => {
 
     const info = await caller.users.getInfo({ userId: 3 });
     expect(info.user.banned).toBe(true);
+
+    const banLog = await tdb
+      .select()
+      .from(activityLog)
+      .where(eq(activityLog.type, ActivityLogType.USER_BANNED))
+      .get();
+
+    expect(banLog?.userId).toBe(2);
+    expect(banLog?.details).toMatchObject({
+      bannedBy: 2,
+      targetUserId: 3,
+      targetUsername: 'User A',
+      reason: 'only ban'
+    });
 
     await expect(
       caller.users.delete({
@@ -779,6 +799,21 @@ describe('users router', () => {
     });
 
     expect(info.user.roleIds).toContain(1);
+
+    const roleLog = await tdb
+      .select()
+      .from(activityLog)
+      .where(eq(activityLog.type, ActivityLogType.USER_ROLE_ADDED))
+      .get();
+
+    expect(roleLog?.userId).toBe(1);
+    expect(roleLog?.details).toMatchObject({
+      assignedBy: 1,
+      targetUserId: 2,
+      targetUsername: 'Test User',
+      roleId: 1,
+      roleName: 'Owner'
+    });
   });
 
   test('should throw when adding duplicate role', async () => {
@@ -810,6 +845,21 @@ describe('users router', () => {
     });
 
     expect(info.user.roleIds).not.toContain(1);
+
+    const roleLog = await tdb
+      .select()
+      .from(activityLog)
+      .where(eq(activityLog.type, ActivityLogType.USER_ROLE_REMOVED))
+      .get();
+
+    expect(roleLog?.userId).toBe(1);
+    expect(roleLog?.details).toMatchObject({
+      removedBy: 1,
+      targetUserId: 2,
+      targetUsername: 'Test User',
+      roleId: 1,
+      roleName: 'Owner'
+    });
   });
 
   test('should throw when non-owner user tries to assign owner role to someone else', async () => {
@@ -1346,6 +1396,29 @@ describe('users router', () => {
 
     expect(info.user.banned).toBe(false);
     expect(info.user.banReason).toBeNull();
+
+    const unbanLog = await tdb
+      .select()
+      .from(activityLog)
+      .where(eq(activityLog.type, ActivityLogType.USER_UNBANNED))
+      .get();
+
+    expect(unbanLog?.userId).toBe(1);
+    expect(unbanLog?.details).toMatchObject({
+      unbannedBy: 1,
+      targetUserId: 2,
+      targetUsername: 'Test User'
+    });
+  });
+
+  test('should throw when kicking unknown user', async () => {
+    const { caller } = await initTest();
+
+    await expect(
+      caller.users.kick({
+        userId: 999
+      })
+    ).rejects.toThrow('User not found');
   });
 
   test('should throw when kicking non-connected user', async () => {
@@ -1353,7 +1426,7 @@ describe('users router', () => {
 
     await expect(
       caller.users.kick({
-        userId: 999
+        userId: 3
       })
     ).rejects.toThrow('User is not connected');
   });
@@ -1513,6 +1586,30 @@ describe('users router', () => {
     expect(mutedInfo.user.serverMuted).toBe(true);
     expect(mutedInfo.user.serverDeafened).toBe(true);
 
+    const muteLog = await tdb
+      .select()
+      .from(activityLog)
+      .where(eq(activityLog.type, ActivityLogType.USER_MUTED))
+      .get();
+    const deafenLog = await tdb
+      .select()
+      .from(activityLog)
+      .where(eq(activityLog.type, ActivityLogType.USER_DEAFENED))
+      .get();
+
+    expect(muteLog?.userId).toBe(1);
+    expect(muteLog?.details).toMatchObject({
+      mutedBy: 1,
+      targetUserId: 2,
+      targetUsername: 'Test User'
+    });
+    expect(deafenLog?.userId).toBe(1);
+    expect(deafenLog?.details).toMatchObject({
+      deafenedBy: 1,
+      targetUserId: 2,
+      targetUsername: 'Test User'
+    });
+
     await caller.users.mute({
       userId: 2,
       muted: false
@@ -1526,6 +1623,28 @@ describe('users router', () => {
 
     expect(unmutedInfo.user.serverMuted).toBe(false);
     expect(unmutedInfo.user.serverDeafened).toBe(false);
+
+    const unmuteLog = await tdb
+      .select()
+      .from(activityLog)
+      .where(eq(activityLog.type, ActivityLogType.USER_UNMUTED))
+      .get();
+    const undeafenLog = await tdb
+      .select()
+      .from(activityLog)
+      .where(eq(activityLog.type, ActivityLogType.USER_UNDEAFENED))
+      .get();
+
+    expect(unmuteLog?.details).toMatchObject({
+      unmutedBy: 1,
+      targetUserId: 2,
+      targetUsername: 'Test User'
+    });
+    expect(undeafenLog?.details).toMatchObject({
+      undeafenedBy: 1,
+      targetUserId: 2,
+      targetUsername: 'Test User'
+    });
   });
 
   test('should not allow muting yourself', async () => {

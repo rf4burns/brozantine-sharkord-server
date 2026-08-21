@@ -3,6 +3,7 @@ import { MessageRenderer } from '@/components/channel-view/text/renderer';
 import { PluginAvatar } from '@/components/plugin-avatar';
 import { RelativeTime } from '@/components/relative-time';
 import { UserAvatar } from '@/components/user-avatar';
+import { UserName } from '@/components/user-name';
 import { usePluginMetadata } from '@/features/server/plugins/hooks';
 import type { TMessageJumpToTarget } from '@/types';
 import { IconButton, Tooltip } from '@kurier/ui';
@@ -45,9 +46,18 @@ const SearchResultMessageCard = memo(
           )}
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span className="max-w-55 truncate font-medium text-foreground">
-                {authorName}
-              </span>
+              {isPluginMessage || message.userId == null ? (
+                <span className="max-w-55 truncate font-medium text-foreground">
+                  {authorName}
+                </span>
+              ) : (
+                <UserName
+                  userId={message.userId}
+                  className="max-w-55 truncate font-medium"
+                >
+                  {authorName}
+                </UserName>
+              )}
               <span>•</span>
               <RelativeTime date={new Date(message.createdAt)}>
                 {(relativeTime) => <span>{relativeTime}</span>}

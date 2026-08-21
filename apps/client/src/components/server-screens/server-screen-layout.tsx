@@ -109,7 +109,7 @@ const ServerScreenLayout = memo(
             </Button>
           </div>
           <div className="flex-1 overflow-auto px-10 pb-16">
-            <div className="mx-auto max-w-3xl">{children}</div>
+            <div className="mx-auto max-w-6xl">{children}</div>
           </div>
         </div>
       </div>

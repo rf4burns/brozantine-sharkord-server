@@ -1,7 +1,11 @@
 import { isEmojiOnlyMessage, type TJoinedMessage } from '@kurier/shared';
 import parse, { type DOMNode } from 'html-react-parser';
 import type { ReactNode } from 'react';
-import { getDisplayHtmlWithoutGifs, isVisuallyEmptyHtml } from './gif-urls';
+import {
+  collectGifUrlsForMessage,
+  getDisplayHtmlWithoutGifs,
+  isVisuallyEmptyHtml
+} from './gif-urls';
 import { serializer } from './serializer';
 
 const MAX_CACHE_SIZE = 500;
@@ -22,7 +26,7 @@ const trimCache = (cache: Map<string, unknown>) => {
 };
 
 const getMessageContentCacheKey = (message: TJoinedMessage) =>
-  `${message.id}:${message.editedAt ?? 0}:${message.content ?? ''}`;
+  `${message.id}:${message.editedAt ?? 0}:${message.content ?? ''}:${JSON.stringify(message.metadata ?? null)}`;
 
 const getParsedMessageHtml = (message: TJoinedMessage) => {
   const cacheKey = getMessageContentCacheKey(message);
@@ -33,7 +37,8 @@ const getParsedMessageHtml = (message: TJoinedMessage) => {
 
   trimCache(parsedMessageCache);
 
-  const displayHtml = getDisplayHtmlWithoutGifs(message.content ?? '');
+  const gifUrls = collectGifUrlsForMessage(message);
+  const displayHtml = getDisplayHtmlWithoutGifs(message.content ?? '', gifUrls);
 
   if (isVisuallyEmptyHtml(displayHtml)) {
     parsedMessageCache.set(cacheKey, null);

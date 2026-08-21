@@ -1,10 +1,16 @@
 import { ChannelChip } from '@/components/channel-chip';
+import { resolveUnicodeEmojiImage } from '@/components/emoji-picker/emoji-data';
 import { parseDomCommand } from '@kurier/shared';
 import { Element, type DOMNode } from 'html-react-parser';
 import { CommandOverride } from '../overrides/command';
 import { MentionOverride } from '../overrides/mention';
 import { YoutubeOverride } from '../overrides/youtube';
 import { getYoutubeInfo } from './helpers';
+
+const hasImgChild = (domNode: Element) =>
+  domNode.children.some(
+    (child) => child instanceof Element && child.name === 'img'
+  );
 
 const serializer = (domNode: DOMNode, messageId: number) => {
   try {
@@ -53,6 +59,31 @@ const serializer = (domNode: DOMNode, messageId: number) => {
       if (!Number.isNaN(channelId)) {
         return <ChannelChip channelId={channelId} />;
       }
+    } else if (
+      domNode instanceof Element &&
+      domNode.name === 'span' &&
+      domNode.attribs['data-type'] === 'emoji'
+    ) {
+      // already forced to an image (new TipTap output) — keep default parse
+      if (hasImgChild(domNode)) {
+        return undefined;
+      }
+
+      const name = domNode.attribs['data-name'];
+      const src = name ? resolveUnicodeEmojiImage(name) : undefined;
+
+      if (!src) {
+        return undefined;
+      }
+
+      return (
+        <img
+          src={src}
+          alt={name ? `:${name}:` : ''}
+          className="emoji-image"
+          draggable={false}
+        />
+      );
     }
   } catch (error) {
     console.error(`Error parsing DOM node for message ID ${messageId}:`, error);

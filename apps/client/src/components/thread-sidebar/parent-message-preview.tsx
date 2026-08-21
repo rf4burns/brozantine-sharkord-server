@@ -8,6 +8,7 @@ import { memo } from 'react';
 import { useMessageAuthorName } from '../channel-view/text/hooks/use-message-author-name';
 import { MessageRenderer } from '../channel-view/text/renderer';
 import { UserAvatar } from '../user-avatar';
+import { UserName } from '../user-name';
 
 type TParentMessageContentProps = {
   parentMessage: TJoinedMessage;
@@ -35,7 +36,16 @@ const ParentMessageContent = memo(
               showUserPopover
             />
           )}
-          <span className="text-sm font-medium">{authorName}</span>
+          {isPluginMessage || parentMessage.userId == null ? (
+            <span className="text-sm font-medium">{authorName}</span>
+          ) : (
+            <UserName
+              userId={parentMessage.userId}
+              className="text-sm font-medium"
+            >
+              {authorName}
+            </UserName>
+          )}
         </div>
         <div className="text-sm line-clamp-3 opacity-80">
           <MessageRenderer message={parentMessage} />

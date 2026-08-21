@@ -1,5 +1,6 @@
 import { ServerEvents, type StreamKind } from '@kurier/shared';
 import { observable } from '@trpc/server/observable';
+import { resolveVoiceChannelId } from '../../helpers/resolve-voice-channel-id';
 import { protectedProcedure } from '../../utils/trpc';
 
 type TVoiceProducerEvent = {
@@ -56,12 +57,17 @@ const onVoiceRemoveExternalStreamRoute = protectedProcedure.subscription(
 // they relate to actual media streaming, not UI state
 const onVoiceNewProducerRoute = protectedProcedure.subscription(
   async ({ ctx }) => {
-    if (!ctx.currentVoiceChannelId) {
+    const channelId = resolveVoiceChannelId(ctx);
+
+    if (!channelId) {
+      // client must open this only after join; returning an empty observable is
+      // intentional so an early subscribe does not throw, but that subscribe is
+      // dead until the client reconnects the subscription after joining
       return observable<TVoiceProducerEvent>(() => () => {});
     }
 
     return ctx.pubsub.subscribeForChannel(
-      ctx.currentVoiceChannelId,
+      channelId,
       ServerEvents.VOICE_NEW_PRODUCER
     );
   }
@@ -69,12 +75,14 @@ const onVoiceNewProducerRoute = protectedProcedure.subscription(
 
 const onVoiceProducerClosedRoute = protectedProcedure.subscription(
   async ({ ctx }) => {
-    if (!ctx.currentVoiceChannelId) {
+    const channelId = resolveVoiceChannelId(ctx);
+
+    if (!channelId) {
       return observable<TVoiceProducerEvent>(() => () => {});
     }
 
     return ctx.pubsub.subscribeForChannel(
-      ctx.currentVoiceChannelId,
+      channelId,
       ServerEvents.VOICE_PRODUCER_CLOSED
     );
   }

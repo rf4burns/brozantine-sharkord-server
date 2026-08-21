@@ -7,6 +7,15 @@ type TVoiceMoveGrant = {
 
 const voiceMoveGrants = new Map<number, TVoiceMoveGrant>();
 
+const isGrantValid = (
+  grant: TVoiceMoveGrant | undefined,
+  channelId: number
+): grant is TVoiceMoveGrant => {
+  return (
+    !!grant && grant.channelId === channelId && grant.expiresAt > Date.now()
+  );
+};
+
 const grantVoiceMove = (userId: number, channelId: number): void => {
   voiceMoveGrants.set(userId, {
     channelId,
@@ -14,18 +23,33 @@ const grantVoiceMove = (userId: number, channelId: number): void => {
   });
 };
 
+const peekVoiceMoveGrant = (userId: number, channelId: number): boolean => {
+  return isGrantValid(voiceMoveGrants.get(userId), channelId);
+};
+
 const consumeVoiceMoveGrant = (userId: number, channelId: number): boolean => {
   const grant = voiceMoveGrants.get(userId);
 
-  if (!grant) return false;
+  if (!isGrantValid(grant, channelId)) {
+    if (grant) {
+      voiceMoveGrants.delete(userId);
+    }
+
+    return false;
+  }
 
   voiceMoveGrants.delete(userId);
 
-  return grant.channelId === channelId && grant.expiresAt > Date.now();
+  return true;
 };
 
 const clearVoiceMoveGrantsForTests = (): void => {
   voiceMoveGrants.clear();
 };
 
-export { clearVoiceMoveGrantsForTests, consumeVoiceMoveGrant, grantVoiceMove };
+export {
+  clearVoiceMoveGrantsForTests,
+  consumeVoiceMoveGrant,
+  grantVoiceMove,
+  peekVoiceMoveGrant
+};

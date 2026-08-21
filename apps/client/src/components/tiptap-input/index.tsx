@@ -2,7 +2,7 @@ import { useCustomEmojis } from '@/features/server/emojis/hooks';
 import { useCan, useReferenceableChannels } from '@/features/server/hooks';
 import { useFilteredUsers } from '@/features/server/users/hooks';
 import { Permission, TestId, type TCommandInfo } from '@kurier/shared';
-import Emoji, { gitHubEmojis } from '@tiptap/extension-emoji';
+import Emoji from '@tiptap/extension-emoji';
 import Link from '@tiptap/extension-link';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -14,6 +14,10 @@ import {
   useRef,
   type Ref
 } from 'react';
+import {
+  TWEMOJI_GITHUB_EMOJIS,
+  withTwemojiFallback
+} from '../emoji-picker/emoji-data';
 import { ChannelReference } from './extensions/channel-reference';
 import { ChannelReferenceNode } from './extensions/channel-reference/node';
 import {
@@ -85,6 +89,16 @@ const TiptapInput = memo(
     const can = useCan();
     const canMentionEveryone = can(Permission.MENTION_EVERYONE);
 
+    const twemojiCustomEmojis = useMemo(
+      () => customEmojis.map(withTwemojiFallback),
+      [customEmojis]
+    );
+
+    const allEmojis = useMemo(
+      () => [...TWEMOJI_GITHUB_EMOJIS, ...twemojiCustomEmojis],
+      [twemojiCustomEmojis]
+    );
+
     const extensions = useMemo(() => {
       const exts = [
         StarterKit.configure({
@@ -107,8 +121,9 @@ const TiptapInput = memo(
           }
         }),
         Emoji.configure({
-          emojis: [...gitHubEmojis, ...customEmojis],
+          emojis: allEmojis,
           enableEmoticons: true,
+          forceFallbackImages: true,
           suggestion: EmojiSuggestion,
           HTMLAttributes: {
             class: 'emoji-image'
@@ -139,7 +154,7 @@ const TiptapInput = memo(
       }
 
       return exts;
-    }, [customEmojis, commands, users, channels, canMentionEveryone]);
+    }, [allEmojis, commands, users, channels, canMentionEveryone]);
 
     const editor = useEditor({
       extensions,
@@ -242,8 +257,6 @@ const TiptapInput = memo(
     // this ensures newly added emojis appear in autocomplete without refreshing the app
     useEffect(() => {
       if (editor) {
-        const allEmojis = [...gitHubEmojis, ...customEmojis];
-
         if (editor.storage.emoji) {
           editor.storage.emoji.emojis = allEmojis;
         }
@@ -260,7 +273,7 @@ const TiptapInput = memo(
         editor.extensionManager.extensions.forEach(applyEmojiOptions);
         editor.options.extensions?.forEach(applyEmojiOptions);
       }
-    }, [editor, customEmojis]);
+    }, [editor, allEmojis]);
 
     // keep commands storage in sync with plugin commands from the store
     useEffect(() => {

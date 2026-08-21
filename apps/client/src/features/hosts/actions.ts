@@ -101,7 +101,11 @@ const switchHost = async (host: string) => {
   beginHostSwitch();
 
   try {
-    await leaveVoice({ reason: 'unknown' });
+    try {
+      await leaveVoice({ reason: 'unknown' });
+    } catch {
+      // host switch continues even if leave fails
+    }
     cleanup({ keepAuth: true });
     setActiveHost(host);
     await reconnectActiveHost();
@@ -146,7 +150,11 @@ const removeHost = async (host: string) => {
 
   try {
     if (wasActive) {
-      await leaveVoice({ reason: 'unknown' });
+      try {
+        await leaveVoice({ reason: 'unknown' });
+      } catch {
+        // host removal continues even if leave fails
+      }
       cleanup({ keepAuth: true });
     }
 

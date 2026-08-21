@@ -10,7 +10,10 @@ import { config } from '../../config';
 import { db } from '../../db';
 import { channels, users } from '../../db/schema';
 import { overlayServerVoiceFlags } from '../../helpers/server-voice-state';
-import { consumeVoiceMoveGrant } from '../../helpers/voice-move-grants';
+import {
+  consumeVoiceMoveGrant,
+  peekVoiceMoveGrant
+} from '../../helpers/voice-move-grants';
 import { logger } from '../../logger';
 import { VoiceRuntime } from '../../runtimes/voice';
 import { invariant } from '../../utils/invariant';
@@ -33,10 +36,7 @@ const joinVoiceRoute = rateLimitedProcedure(protectedProcedure, {
   .mutation(async ({ input, ctx }) => {
     await ctx.needsPermission(Permission.JOIN_VOICE_CHANNELS);
 
-    const movedByModerator = consumeVoiceMoveGrant(
-      ctx.user.id,
-      input.channelId
-    );
+    const movedByModerator = peekVoiceMoveGrant(ctx.user.id, input.channelId);
 
     if (!movedByModerator) {
       await ctx.needsChannelPermission(input.channelId, ChannelPermission.JOIN);
@@ -73,6 +73,10 @@ const joinVoiceRoute = rateLimitedProcedure(protectedProcedure, {
       code: 'INTERNAL_SERVER_ERROR',
       message: 'Voice runtime not found for this channel'
     });
+
+    if (movedByModerator) {
+      consumeVoiceMoveGrant(ctx.user.id, input.channelId);
+    }
 
     const memberVoiceFlags = await db
       .select({

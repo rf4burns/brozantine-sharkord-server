@@ -4,10 +4,14 @@ import {
   useChannelsMap,
   useCurrentVoiceChannelId
 } from '@/features/server/channels/hooks';
+import { channelByIdSelector } from '@/features/server/channels/selectors';
+import { store } from '@/features/store';
 import { getLocalStorageItemAsJSON, LocalStorageKey } from '@/helpers/storage';
 import { useSelectChannel } from '@/hooks/use-select-channel';
 import { getTRPCClient } from '@/lib/trpc';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 
 const loadExpandedValue = (categoryId: number): boolean => {
   const expandedMap = getLocalStorageItemAsJSON<Record<number, boolean>>(
@@ -77,22 +81,41 @@ const useRestoreLastSelectedChannel = () => {
 };
 
 const useVoiceMoveSubscription = () => {
+  const { t } = useTranslation('sidebar');
   const selectChannel = useSelectChannel();
   const currentVoiceChannelId = useCurrentVoiceChannelId();
   const selectChannelRef = useRef(selectChannel);
   const currentVoiceChannelIdRef = useRef(currentVoiceChannelId);
+  const failedMoveUserRef = useRef(t('failedMoveUser'));
 
   selectChannelRef.current = selectChannel;
   currentVoiceChannelIdRef.current = currentVoiceChannelId;
+  failedMoveUserRef.current = t('failedMoveUser');
 
   useEffect(() => {
     const trpc = getTRPCClient();
 
     const sub = trpc.voice.onMoved.subscribe(undefined, {
       onData: ({ channelId, fromChannelId }) => {
-        if (currentVoiceChannelIdRef.current !== fromChannelId) return;
+        void (async () => {
+          if (currentVoiceChannelIdRef.current !== fromChannelId) {
+            toast.error(failedMoveUserRef.current);
+            return;
+          }
 
-        selectChannelRef.current(channelId);
+          const channel = channelByIdSelector(store.getState(), channelId);
+
+          if (!channel) {
+            toast.error(failedMoveUserRef.current);
+            return;
+          }
+
+          const moved = await selectChannelRef.current(channelId);
+
+          if (!moved) {
+            toast.error(failedMoveUserRef.current);
+          }
+        })();
       },
       onError: (err) => console.error('onMoved subscription error:', err)
     });

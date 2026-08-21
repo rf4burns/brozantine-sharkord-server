@@ -7,6 +7,7 @@
   "deletedBadge": "Supprimé",
   "memberSince": "Membre depuis {{date}}",
   "directMessage": "Message privé",
+  "message": "Message",
   "moderationView": "Fenêtre de moderation",
   "serverMute": "Rendre muet sur le serveur",
   "serverUnmute": "Retirer le mute serveur",

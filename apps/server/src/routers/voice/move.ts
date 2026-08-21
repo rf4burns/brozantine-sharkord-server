@@ -1,4 +1,5 @@
 import {
+  ActivityLogType,
   ChannelPermission,
   ChannelType,
   Permission,
@@ -10,10 +11,10 @@ import { config } from '../../config';
 import { db } from '../../db';
 import { publishHiddenChannelToUser } from '../../db/publishers';
 import { userCan } from '../../db/queries/roles';
-import { channels } from '../../db/schema';
-import { assertCanModerateUser } from '../../helpers/role-hierarchy';
+import { channels, users } from '../../db/schema';
 import { grantVoiceMove } from '../../helpers/voice-move-grants';
 import { logger } from '../../logger';
+import { enqueueActivityLog } from '../../queues/activity-log';
 import { VoiceRuntime } from '../../runtimes/voice';
 import { invariant } from '../../utils/invariant';
 import { protectedProcedure, rateLimitedProcedure } from '../../utils/trpc';
@@ -31,17 +32,31 @@ const moveUserRoute = rateLimitedProcedure(protectedProcedure, {
   )
   .mutation(async ({ input, ctx }) => {
     await ctx.needsPermission(Permission.MOVE_MEMBERS);
-    await assertCanModerateUser(ctx.userId, input.userId);
 
-    const channel = await db
-      .select()
-      .from(channels)
-      .where(eq(channels.id, input.channelId))
-      .get();
+    // move is rank-agnostic: anyone with MOVE_MEMBERS can drag any member
+    invariant(ctx.userId !== input.userId, {
+      code: 'BAD_REQUEST',
+      message: 'You cannot move yourself.'
+    });
+
+    const [channel, targetUser] = await Promise.all([
+      db.select().from(channels).where(eq(channels.id, input.channelId)).get(),
+      db
+        .select({ id: users.id, name: users.name })
+        .from(users)
+        .where(eq(users.id, input.userId))
+        .limit(1)
+        .get()
+    ]);
 
     invariant(channel, {
       code: 'NOT_FOUND',
       message: 'Channel not found'
+    });
+
+    invariant(targetUser, {
+      code: 'NOT_FOUND',
+      message: 'User not found'
     });
 
     invariant(channel.type === ChannelType.VOICE, {
@@ -69,7 +84,7 @@ const moveUserRoute = rateLimitedProcedure(protectedProcedure, {
     });
 
     const originChannel = await db
-      .select({ isDm: channels.isDm })
+      .select({ isDm: channels.isDm, name: channels.name })
       .from(channels)
       .where(eq(channels.id, currentRuntime.id))
       .limit(1)
@@ -94,6 +109,20 @@ const moveUserRoute = rateLimitedProcedure(protectedProcedure, {
     ctx.pubsub.publishFor(input.userId, ServerEvents.USER_VOICE_MOVED, {
       channelId: input.channelId,
       fromChannelId: currentRuntime.id
+    });
+
+    await enqueueActivityLog({
+      type: ActivityLogType.USER_MOVED,
+      userId: ctx.userId,
+      details: {
+        targetUserId: input.userId,
+        targetUsername: targetUser.name,
+        movedBy: ctx.userId,
+        fromChannelId: currentRuntime.id,
+        fromChannelName: originChannel?.name ?? String(currentRuntime.id),
+        toChannelId: input.channelId,
+        toChannelName: channel.name
+      }
     });
 
     logger.info(

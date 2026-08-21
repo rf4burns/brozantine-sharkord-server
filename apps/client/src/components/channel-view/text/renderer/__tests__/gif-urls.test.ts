@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
+  collectGifUrlsForMessage,
+  embedCoveredByGifs,
   extractEmbeddableGifUrls,
   getDisplayHtmlWithoutGifs,
   isEmbeddableGifUrl,
@@ -64,5 +66,57 @@ describe('gif-urls', () => {
     const stripped = getDisplayHtmlWithoutGifs(html);
 
     expect(isVisuallyEmptyHtml(stripped)).toBe(true);
+  });
+
+  test('collects gif urls from content and metadata images', () => {
+    const gifUrl = 'https://media.giphy.com/media/a/giphy.gif';
+
+    expect(
+      collectGifUrlsForMessage({
+        content: `<p>${gifUrl}</p>`,
+        metadata: null
+      })
+    ).toEqual([gifUrl]);
+
+    expect(
+      collectGifUrlsForMessage({
+        content: '<p>https://giphy.com/gifs/hello-abc</p>',
+        metadata: [
+          {
+            kind: 'open_graph',
+            url: 'https://giphy.com/gifs/hello-abc',
+            images: [gifUrl]
+          }
+        ]
+      })
+    ).toEqual([gifUrl]);
+  });
+
+  test('embedCoveredByGifs matches urls and provider pages when gifs exist', () => {
+    const gifUrl = 'https://media.giphy.com/media/a/giphy.gif';
+
+    expect(
+      embedCoveredByGifs({ url: 'https://reddit.com/r/test' }, [gifUrl])
+    ).toBe(false);
+
+    expect(
+      embedCoveredByGifs(
+        { url: 'https://giphy.com/gifs/hello-abc', images: [gifUrl] },
+        [gifUrl]
+      )
+    ).toBe(true);
+
+    expect(
+      embedCoveredByGifs({ url: gifUrl, mediaType: 'image', kind: 'media' }, [
+        gifUrl
+      ])
+    ).toBe(true);
+
+    expect(
+      embedCoveredByGifs(
+        { url: 'https://giphy.com/gifs/other', images: [] },
+        []
+      )
+    ).toBe(false);
   });
 });

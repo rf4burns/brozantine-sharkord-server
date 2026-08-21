@@ -1,5 +1,8 @@
 import { ActivityLogType, DisconnectCode, Permission } from '@kurier/shared';
+import { eq } from 'drizzle-orm';
 import z from 'zod';
+import { db } from '../../db';
+import { users } from '../../db/schema';
 import { assertCanModerateUser } from '../../helpers/role-hierarchy';
 import { enqueueActivityLog } from '../../queues/activity-log';
 import { invariant } from '../../utils/invariant';
@@ -14,6 +17,19 @@ const kickRoute = protectedProcedure
   )
   .mutation(async ({ ctx, input }) => {
     await ctx.needsPermission(Permission.KICK_MEMBERS);
+
+    const targetUser = await db
+      .select({ id: users.id, name: users.name })
+      .from(users)
+      .where(eq(users.id, input.userId))
+      .limit(1)
+      .get();
+
+    invariant(targetUser, {
+      code: 'NOT_FOUND',
+      message: 'User not found'
+    });
+
     await assertCanModerateUser(ctx.userId, input.userId);
 
     const userWs = ctx.getUserWs(input.userId);
@@ -25,12 +41,14 @@ const kickRoute = protectedProcedure
 
     userWs.close(DisconnectCode.KICKED, input.reason);
 
-    enqueueActivityLog({
+    await enqueueActivityLog({
       type: ActivityLogType.USER_KICKED,
-      userId: input.userId,
+      userId: ctx.userId,
       details: {
         reason: input.reason,
-        kickedBy: ctx.userId
+        kickedBy: ctx.userId,
+        targetUserId: input.userId,
+        targetUsername: targetUser.name
       }
     });
   });

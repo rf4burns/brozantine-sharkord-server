@@ -1,5 +1,14 @@
-import type { TJoinedMessage } from '@kurier/shared';
-import { isEmbeddableGifUrl, isGifProviderPage } from './gif-urls';
+import {
+  audioExtensions,
+  imageExtensions,
+  videoExtensions,
+  type TJoinedMessage
+} from '@kurier/shared';
+import {
+  collectGifUrlsForMessage,
+  embedCoveredByGifs,
+  isEmbeddableGifUrl
+} from './gif-urls';
 import type {
   TFoundMedia,
   TFoundOpenGraph,
@@ -80,6 +89,18 @@ const isMediaMetadata = (metadata: TMessageMetadataLike | null | undefined) => {
   return !!metadata?.mediaType && DIRECT_MEDIA_TYPES.has(metadata.mediaType);
 };
 
+const isPreviewableMediaExtension = (extension: string): boolean => {
+  const ext = extension.toLowerCase().startsWith('.')
+    ? extension.toLowerCase()
+    : `.${extension.toLowerCase()}`;
+
+  return (
+    imageExtensions.includes(ext) ||
+    videoExtensions.includes(ext) ||
+    audioExtensions.includes(ext)
+  );
+};
+
 const extractMessageOpenGraph = (
   message: TJoinedMessage,
   media: TFoundMedia[]
@@ -88,6 +109,7 @@ const extractMessageOpenGraph = (
     media.map((item) => normalizeComparableUrl(item.url))
   );
   const seenPreviewUrls = new Set<string>();
+  const gifMediaUrls = collectGifUrlsForMessage(message);
 
   return (message.metadata ?? [])
     .map((metadata, index) => {
@@ -109,11 +131,22 @@ const extractMessageOpenGraph = (
         return undefined;
       }
 
-      const hasGifMedia = media.some(
-        (item) => item.type === 'image' && isEmbeddableGifUrl(item.url)
-      );
+      const imageUrl = (metadataEntry.images ?? []).find((url) => {
+        return !directMediaUrls.has(normalizeComparableUrl(url));
+      });
 
-      if (hasGifMedia && isGifProviderPage(metadataEntry.url)) {
+      if (
+        embedCoveredByGifs(
+          {
+            url: metadataEntry.url,
+            images: metadataEntry.images,
+            imageUrl,
+            mediaType: metadataEntry.mediaType,
+            kind: metadataEntry.kind
+          },
+          gifMediaUrls
+        )
+      ) {
         return undefined;
       }
 
@@ -124,10 +157,6 @@ const extractMessageOpenGraph = (
       }
 
       seenPreviewUrls.add(normalizedUrl);
-
-      const imageUrl = (metadataEntry.images ?? []).find((url) => {
-        return !directMediaUrls.has(normalizeComparableUrl(url));
-      });
 
       const preview: TFoundOpenGraph = {
         key: `open-graph:${normalizedUrl}:${index}`,
@@ -158,5 +187,6 @@ export {
   getYoutubeInfo,
   getYoutubeVideoId,
   hasSpecializedLinkOverride,
+  isPreviewableMediaExtension,
   normalizeComparableUrl
 };

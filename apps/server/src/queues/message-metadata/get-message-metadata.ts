@@ -137,16 +137,39 @@ export const processMessageMetadata = async (
   content: string,
   messageId: number
 ) => {
-  const metadata = await urlMetadataParser(content);
+  const nextMetadata = (await urlMetadataParser(content)) ?? [];
 
-  const hasMetadata = metadata && metadata.length > 0;
+  if (nextMetadata.length > 0) {
+    return db
+      .update(messages)
+      .set({
+        metadata: nextMetadata,
+        updatedAt: Date.now()
+      })
+      .where(eq(messages.id, messageId))
+      .returning()
+      .get();
+  }
 
-  if (!hasMetadata) return;
+  const existing = db
+    .select({ metadata: messages.metadata })
+    .from(messages)
+    .where(eq(messages.id, messageId))
+    .limit(1)
+    .get();
+
+  const existingMetadata = existing?.metadata;
+  const hasExisting =
+    Array.isArray(existingMetadata) && existingMetadata.length > 0;
+
+  if (!hasExisting) {
+    return;
+  }
 
   return db
     .update(messages)
     .set({
-      metadata,
+      metadata: [],
       updatedAt: Date.now()
     })
     .where(eq(messages.id, messageId))

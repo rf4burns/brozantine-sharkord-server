@@ -7,6 +7,7 @@
   "deletedBadge": "已删除",
   "memberSince": "加入于 {{date}}",
   "directMessage": "私信",
+  "message": "消息",
   "moderationView": "管理视图",
   "serverMute": "服务器静音",
   "serverUnmute": "解除服务器静音",

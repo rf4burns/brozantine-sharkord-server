@@ -1,4 +1,8 @@
 import { describe, expect, test } from 'bun:test';
+import { eq } from 'drizzle-orm';
+import { db } from '../../../db';
+import { messages } from '../../../db/schema';
+import { processMessageMetadata } from '../get-message-metadata';
 import { createOpenGraphMetadata, getDirectMediaMetaFromUrl } from '../helpers';
 
 describe('message metadata normalization', () => {
@@ -79,5 +83,61 @@ describe('message metadata normalization', () => {
       isDirectMediaLink: false,
       mediaType: 'none'
     });
+  });
+});
+
+describe('processMessageMetadata clearing', () => {
+  test('clears stale metadata when content has no urls', async () => {
+    const message = db
+      .select({ id: messages.id })
+      .from(messages)
+      .limit(1)
+      .get();
+
+    expect(message).toBeTruthy();
+
+    await db
+      .update(messages)
+      .set({
+        metadata: [
+          {
+            kind: 'open_graph',
+            url: 'https://example.com/article',
+            title: 'Example',
+            siteName: 'Example',
+            mediaType: 'website',
+            description: 'stale',
+            images: ['https://example.com/cover.png']
+          }
+        ]
+      })
+      .where(eq(messages.id, message!.id));
+
+    const updated = await processMessageMetadata(
+      'plain text only',
+      message!.id
+    );
+
+    expect(updated).toBeTruthy();
+    expect(updated?.metadata).toEqual([]);
+  });
+
+  test('does not write when metadata is already empty and content has no urls', async () => {
+    const message = db
+      .select({ id: messages.id })
+      .from(messages)
+      .limit(1)
+      .get();
+
+    expect(message).toBeTruthy();
+
+    await db
+      .update(messages)
+      .set({ metadata: [] })
+      .where(eq(messages.id, message!.id));
+
+    const updated = await processMessageMetadata('still no links', message!.id);
+
+    expect(updated).toBeUndefined();
   });
 });

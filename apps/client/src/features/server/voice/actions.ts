@@ -180,7 +180,11 @@ export const joinVoice = async (
 
   if (currentChannelId) {
     // is already in a voice channel, leave it first
-    await leaveVoice({ reason: 'switch_channel' });
+    try {
+      await leaveVoice({ reason: 'switch_channel' });
+    } catch {
+      return undefined;
+    }
   }
 
   setCurrentVoiceChannelId(channelId);
@@ -196,6 +200,7 @@ export const joinVoice = async (
 
     return routerRtpCapabilities;
   } catch (error) {
+    setCurrentVoiceChannelId(undefined);
     toast.error(getTrpcError(error, 'Failed to join voice channel'));
   }
 
@@ -226,7 +231,9 @@ export const leaveVoice = async (options?: {
     selectedChannelId
   });
 
-  if (selectedChannelId === currentChannelId) {
+  const wasSelected = selectedChannelId === currentChannelId;
+
+  if (wasSelected) {
     setSelectedChannelId(undefined);
   }
 
@@ -240,7 +247,14 @@ export const leaveVoice = async (options?: {
     await client.voice.leave.mutate();
     playSound(SoundType.OWN_USER_LEFT_VOICE_CHANNEL);
   } catch (error) {
+    setCurrentVoiceChannelId(currentChannelId);
+
+    if (wasSelected) {
+      setSelectedChannelId(currentChannelId);
+    }
+
     toast.error(getTrpcError(error, 'Failed to leave voice channel'));
+    throw error;
   }
 };
 

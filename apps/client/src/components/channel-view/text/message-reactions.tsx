@@ -1,4 +1,4 @@
-import { isTextPresentation } from '@/components/tiptap-input/helpers';
+import { resolveUnicodeEmojiImage } from '@/components/emoji-picker/emoji-data';
 import { useOwnUserId, useUsernames } from '@/features/server/users/hooks';
 import { getFileUrl } from '@/helpers/get-file-url';
 import { getTRPCClient } from '@/lib/trpc';
@@ -9,7 +9,6 @@ import {
   type TJoinedMessageReaction
 } from '@kurier/shared';
 import { Button, Tooltip } from '@kurier/ui';
-import { gitHubEmojis } from '@tiptap/extension-emoji';
 import { memo, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -42,51 +41,41 @@ type TEmojiProps = {
   emoji: string;
   file: TFile | null;
   className?: string;
-  nativeEmojiClassName?: string;
 };
 
-const Emoji = memo(
-  ({ emoji, file, className, nativeEmojiClassName }: TEmojiProps) => {
-    const gitHubEmoji = useMemo(
-      () =>
-        gitHubEmojis.find(
-          (e) => e.name === emoji || e.shortcodes.includes(emoji)
-        ),
-      [emoji]
-    );
+const Emoji = memo(({ emoji, file, className }: TEmojiProps) => {
+  const onError = useCallback(
+    (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+      const target = e.target as HTMLImageElement;
 
-    const onError = useCallback(
-      (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-        const target = e.target as HTMLImageElement;
+      target.outerHTML = `<span class="text-xs text-muted-foreground">:${emoji}:</span>`;
+    },
+    [emoji]
+  );
 
-        target.outerHTML = `<span class="text-xs text-muted-foreground">:${emoji}:</span>`;
-      },
-      [emoji]
-    );
-
-    const imgSrc = useMemo(
-      () => gitHubEmoji?.fallbackImage ?? getFileUrl(file),
-      [gitHubEmoji, file]
-    );
-
-    if (gitHubEmoji?.emoji && !isTextPresentation(gitHubEmoji.emoji)) {
-      return (
-        <span className={cn('text-sm', nativeEmojiClassName)}>
-          {gitHubEmoji.emoji}
-        </span>
-      );
+  const imgSrc = useMemo(() => {
+    if (file) {
+      return getFileUrl(file);
     }
 
+    return resolveUnicodeEmojiImage(emoji);
+  }, [emoji, file]);
+
+  if (!imgSrc) {
     return (
-      <img
-        src={imgSrc}
-        alt={`:${emoji}:`}
-        className={cn('w-5 h-5 object-contain', className)}
-        onError={onError}
-      />
+      <span className="text-xs text-muted-foreground">{`:${emoji}:`}</span>
     );
   }
-);
+
+  return (
+    <img
+      src={imgSrc}
+      alt={`:${emoji}:`}
+      className={cn('w-5 h-5 object-contain', className)}
+      onError={onError}
+    />
+  );
+});
 
 type TReactionProps = {
   emoji: string;
@@ -122,12 +111,7 @@ const Reaction = memo(
             emojiName={emoji}
             reacters={tooltipContent}
             emojiSlot={
-              <Emoji
-                emoji={emoji}
-                file={file}
-                className="w-10 h-10"
-                nativeEmojiClassName="text-[28px]"
-              />
+              <Emoji emoji={emoji} file={file} className="w-10 h-10" />
             }
           />
         }

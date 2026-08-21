@@ -20,6 +20,7 @@ export enum ActivityLogType {
   USER_UNMUTED = 'USER_UNMUTED',
   USER_DEAFENED = 'USER_DEAFENED',
   USER_UNDEAFENED = 'USER_UNDEAFENED',
+  USER_MOVED = 'USER_MOVED',
   USER_NICKNAME_UPDATED = 'USER_NICKNAME_UPDATED',
   // -------------------- ROLES --------------------
   CREATED_ROLE = 'CREATED_ROLE',
@@ -65,13 +66,19 @@ export type TActivityLogDetailsMap = {
   [ActivityLogType.USER_KICKED]: {
     reason: string | undefined;
     kickedBy: number;
+    targetUserId: number;
+    targetUsername: string;
   };
   [ActivityLogType.USER_BANNED]: {
     reason: string | undefined;
     bannedBy: number;
+    targetUserId: number;
+    targetUsername: string;
   };
   [ActivityLogType.USER_UNBANNED]: {
     unbannedBy: number;
+    targetUserId: number;
+    targetUsername: string;
   };
   [ActivityLogType.USER_DELETED]: {
     reason: string | undefined;
@@ -82,34 +89,50 @@ export type TActivityLogDetailsMap = {
   };
   [ActivityLogType.USER_ROLE_ADDED]: {
     targetUserId: number;
+    targetUsername: string;
     roleId: number;
     roleName: string;
     assignedBy: number;
   };
   [ActivityLogType.USER_ROLE_REMOVED]: {
     targetUserId: number;
+    targetUsername: string;
     roleId: number;
     roleName: string;
     removedBy: number;
   };
   [ActivityLogType.USER_MUTED]: {
     targetUserId: number;
+    targetUsername: string;
     mutedBy: number;
   };
   [ActivityLogType.USER_UNMUTED]: {
     targetUserId: number;
+    targetUsername: string;
     unmutedBy: number;
   };
   [ActivityLogType.USER_DEAFENED]: {
     targetUserId: number;
+    targetUsername: string;
     deafenedBy: number;
   };
   [ActivityLogType.USER_UNDEAFENED]: {
     targetUserId: number;
+    targetUsername: string;
     undeafenedBy: number;
+  };
+  [ActivityLogType.USER_MOVED]: {
+    targetUserId: number;
+    targetUsername: string;
+    movedBy: number;
+    fromChannelId: number;
+    fromChannelName: string;
+    toChannelId: number;
+    toChannelName: string;
   };
   [ActivityLogType.USER_NICKNAME_UPDATED]: {
     targetUserId: number;
+    targetUsername: string;
     updatedBy: number;
     nickname: string | null;
   };

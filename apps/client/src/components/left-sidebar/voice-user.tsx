@@ -61,6 +61,12 @@ const VoiceUser = memo(({ user, isOwnChannel = false }: TVoiceUserProps) => {
     didDragRef.current = false;
   }, []);
 
+  const displayName = (
+    <span className="flex-1 text-muted-foreground truncate text-xs">
+      {user.name}
+    </span>
+  );
+
   const userRow = (
     <div
       draggable={canMove}
@@ -79,9 +85,15 @@ const VoiceUser = memo(({ user, isOwnChannel = false }: TVoiceUserProps) => {
         showStatusBadge={false}
       />
 
-      <span className="flex-1 text-muted-foreground truncate text-xs">
-        {user.name}
-      </span>
+      {canMove ? (
+        <UserPopover userId={user.id}>
+          <span className="flex-1 min-w-0 text-muted-foreground truncate text-xs cursor-pointer">
+            {user.name}
+          </span>
+        </UserPopover>
+      ) : (
+        displayName
+      )}
 
       <ElapsedTime
         startedAt={user.joinedAt}
@@ -105,6 +117,19 @@ const VoiceUser = memo(({ user, isOwnChannel = false }: TVoiceUserProps) => {
       </div>
     </div>
   );
+
+  // keep the draggable row free of PopoverTrigger so HTML5 drag can start
+  if (canMove) {
+    if (!isOwnUser && isOwnChannel) {
+      return (
+        <StreamContextMenu type="user" userId={user.id} name={user.name}>
+          {userRow}
+        </StreamContextMenu>
+      );
+    }
+
+    return userRow;
+  }
 
   if (isOwnUser || !isOwnChannel) {
     return <UserPopover userId={user.id}>{userRow}</UserPopover>;

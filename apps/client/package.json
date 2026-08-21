@@ -1,7 +1,7 @@
 {
   "name": "client",
   "private": true,
-  "version": "0.0.29",
+  "version": "0.0.30",
   "type": "module",
   "scripts": {
     "dev": "vite --host",
@@ -50,7 +50,6 @@
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-i18next": "^16.5.6",
-    "react-masonry-css": "^1.0.16",
     "react-player": "^3.4.0",
     "react-redux": "^9.2.0",
     "react-virtuoso": "^4.18.1",

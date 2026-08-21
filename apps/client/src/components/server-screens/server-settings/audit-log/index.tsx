@@ -144,7 +144,7 @@ const ActivityLog = memo(() => {
               )}
               <div className="min-w-0 flex-1">
                 <p className="text-sm text-foreground">
-                  {formatActivityLogEntry(t, actorName, item)}
+                  {formatActivityLogEntry(t, actorName, item, userNameById)}
                 </p>
                 <div className="mt-0.5 flex gap-2 text-xs text-faint">
                   <RelativeTime date={new Date(item.createdAt)}>

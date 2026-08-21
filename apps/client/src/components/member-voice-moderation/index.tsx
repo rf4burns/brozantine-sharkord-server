@@ -9,7 +9,7 @@ import { useVoiceUserStateByUserId } from '@/features/server/voice/hooks';
 import { getTRPCClient } from '@/lib/trpc';
 import { Permission, getTrpcError } from '@kurier/shared';
 import { Button, ContextMenuItem } from '@kurier/ui';
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
@@ -34,13 +34,27 @@ const MemberVoiceModeration = memo(
     const [optimisticMuted, setOptimisticMuted] = useState<boolean>();
     const [optimisticDeafened, setOptimisticDeafened] = useState<boolean>();
 
-    const muted =
-      optimisticMuted ?? knownMuted ?? voiceState?.serverMuted ?? false;
-    const deafened =
-      optimisticDeafened ??
-      knownDeafened ??
-      voiceState?.serverDeafened ??
-      false;
+    const liveMuted = knownMuted ?? voiceState?.serverMuted;
+    const liveDeafened = knownDeafened ?? voiceState?.serverDeafened;
+
+    useEffect(() => {
+      if (liveMuted === undefined) {
+        return;
+      }
+
+      setOptimisticMuted(undefined);
+    }, [liveMuted]);
+
+    useEffect(() => {
+      if (liveDeafened === undefined) {
+        return;
+      }
+
+      setOptimisticDeafened(undefined);
+    }, [liveDeafened]);
+
+    const muted = optimisticMuted ?? liveMuted ?? false;
+    const deafened = optimisticDeafened ?? liveDeafened ?? false;
 
     const visible = canModerate && !isOwnUser;
 

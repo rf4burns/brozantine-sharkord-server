@@ -1,6 +1,7 @@
 import { ChannelPermission, Permission, StreamKind } from '@kurier/shared';
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, mock, test } from 'bun:test';
 import { and, eq } from 'drizzle-orm';
+import type { Producer } from 'mediasoup/types';
 import { initTest } from '../../__tests__/helpers';
 import { tdb } from '../../__tests__/setup';
 import {
@@ -342,6 +343,126 @@ describe('voice router', () => {
           rtpParameters: {}
         })
       ).rejects.toThrow('You cannot speak while server muted or deafened.');
+    } finally {
+      await runtime.destroy();
+    }
+  });
+
+  test('should remove audio producer on server mute and allow produce after unmute', async () => {
+    const { caller: owner } = await initTest(1);
+    const { caller } = await initTest(2);
+    const runtime = new VoiceRuntime(2);
+
+    await runtime.init();
+
+    const close = mock(() => undefined);
+    const mockAudioProducer = {
+      kind: 'audio',
+      type: 'simple',
+      close,
+      observer: {
+        on: mock(() => undefined)
+      }
+    } as unknown as Producer;
+
+    try {
+      await caller.voice.join({
+        channelId: 2,
+        state: {
+          micMuted: false,
+          soundMuted: false
+        }
+      });
+
+      runtime.addProducer(2, StreamKind.AUDIO, mockAudioProducer);
+
+      expect(runtime.getProducer(StreamKind.AUDIO, 2)).toBe(mockAudioProducer);
+
+      await owner.users.mute({
+        userId: 2,
+        muted: true
+      });
+
+      expect(close).toHaveBeenCalled();
+      expect(runtime.getProducer(StreamKind.AUDIO, 2)).toBeUndefined();
+      expect(runtime.getUserState(2).serverMuted).toBe(true);
+      expect(runtime.getUserState(2).micMuted).toBe(true);
+
+      await expect(
+        caller.voice.produce({
+          transportId: 'missing',
+          kind: StreamKind.AUDIO,
+          rtpParameters: {}
+        })
+      ).rejects.toThrow('You cannot speak while server muted or deafened.');
+
+      await owner.users.mute({
+        userId: 2,
+        muted: false
+      });
+
+      expect(runtime.getUserState(2).serverMuted).toBe(false);
+      expect(runtime.getUserState(2).micMuted).toBe(true);
+
+      await expect(
+        caller.voice.produce({
+          transportId: 'missing',
+          kind: StreamKind.AUDIO,
+          rtpParameters: {}
+        })
+      ).rejects.toThrow('Producer transport not found');
+    } finally {
+      await runtime.destroy();
+    }
+  });
+
+  test('should remove audio producer on server deafen and clear soundMuted on undeafen', async () => {
+    const { caller: owner } = await initTest(1);
+    const { caller } = await initTest(2);
+    const runtime = new VoiceRuntime(2);
+
+    await runtime.init();
+
+    const close = mock(() => undefined);
+    const mockAudioProducer = {
+      kind: 'audio',
+      type: 'simple',
+      close,
+      observer: {
+        on: mock(() => undefined)
+      }
+    } as unknown as Producer;
+
+    try {
+      await caller.voice.join({
+        channelId: 2,
+        state: {
+          micMuted: false,
+          soundMuted: false
+        }
+      });
+
+      runtime.addProducer(2, StreamKind.AUDIO, mockAudioProducer);
+
+      await owner.users.deafen({
+        userId: 2,
+        deafened: true
+      });
+
+      expect(close).toHaveBeenCalled();
+      expect(runtime.getProducer(StreamKind.AUDIO, 2)).toBeUndefined();
+      expect(runtime.getUserState(2).serverDeafened).toBe(true);
+      expect(runtime.getUserState(2).micMuted).toBe(true);
+      expect(runtime.getUserState(2).soundMuted).toBe(true);
+
+      await owner.users.deafen({
+        userId: 2,
+        deafened: false
+      });
+
+      expect(runtime.getUserState(2).serverDeafened).toBe(false);
+      expect(runtime.getUserState(2).soundMuted).toBe(false);
+      expect(runtime.getUserState(2).micMuted).toBe(true);
     } finally {
       await runtime.destroy();
     }

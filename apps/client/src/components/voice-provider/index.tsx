@@ -507,6 +507,29 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
   }, [ownVoiceState.micMuted, syncTransmitMicrophoneTrackState]);
 
   useEffect(() => {
+    if (!ownVoiceState.serverMuted && !ownVoiceState.serverDeafened) {
+      return;
+    }
+
+    const producer = localAudioProducer.current;
+
+    if (!producer) {
+      return;
+    }
+
+    // server already removed the mediasoup producer; drop the local zombie
+    localAudioProducer.current = undefined;
+
+    if (!producer.closed) {
+      producer.close();
+    }
+  }, [
+    ownVoiceState.serverMuted,
+    ownVoiceState.serverDeafened,
+    localAudioProducer
+  ]);
+
+  useEffect(() => {
     syncTransmitMicrophoneTrackState();
   }, [devices.inputMode, syncTransmitMicrophoneTrackState]);
 
@@ -572,6 +595,44 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
       )
     });
   }, [devices.noiseGateThresholdDb]);
+
+  const produceLocalAudio = useCallback(
+    async (track: MediaStreamTrack) => {
+      localAudioProducer.current = await producerTransport.current?.produce({
+        track,
+        // we own mic track lifecycle; closing the producer must not stop it
+        stopTracks: false,
+        codecOptions: {
+          opusStereo: false,
+          opusFec: true,
+          opusDtx: false,
+          opusMaxPlaybackRate: 48000,
+          opusMaxAverageBitrate: 128000
+        },
+        appData: { kind: StreamKind.AUDIO }
+      });
+
+      logVoice('Microphone audio producer created', {
+        producer: localAudioProducer.current
+      });
+
+      localAudioProducer.current?.on('@close', async () => {
+        logVoice('Audio producer closed');
+        localAudioProducer.current = undefined;
+
+        const trpc = getTRPCClient();
+
+        try {
+          await trpc.voice.closeProducer.mutate({
+            kind: StreamKind.AUDIO
+          });
+        } catch (error) {
+          logVoice('Error closing audio producer', { error });
+        }
+      });
+    },
+    [localAudioProducer, producerTransport]
+  );
 
   const startMicStream = useCallback(async () => {
     try {
@@ -714,37 +775,7 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
           await existingAudioProducer.replaceTrack({ track: transmitTrack });
           logVoice('Microphone audio track replaced');
         } else {
-          localAudioProducer.current = await producerTransport.current?.produce(
-            {
-              track: transmitTrack,
-              codecOptions: {
-                opusStereo: false,
-                opusFec: true,
-                opusDtx: false,
-                opusMaxPlaybackRate: 48000,
-                opusMaxAverageBitrate: 128000
-              },
-              appData: { kind: StreamKind.AUDIO }
-            }
-          );
-
-          logVoice('Microphone audio producer created', {
-            producer: localAudioProducer.current
-          });
-
-          localAudioProducer.current?.on('@close', async () => {
-            logVoice('Audio producer closed');
-
-            const trpc = getTRPCClient();
-
-            try {
-              await trpc.voice.closeProducer.mutate({
-                kind: StreamKind.AUDIO
-              });
-            } catch (error) {
-              logVoice('Error closing audio producer', { error });
-            }
-          });
+          await produceLocalAudio(transmitTrack);
         }
 
         rawAudioTrack.onended = () => {
@@ -770,7 +801,7 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
     }
   }, [
     cleanupMicProcessingResources,
-    producerTransport,
+    produceLocalAudio,
     setLocalAudioStream,
     localAudioProducer,
     syncTransmitMicrophoneTrackState,
@@ -781,6 +812,30 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
     devices.noiseGateEnabled,
     devices.noiseGateThresholdDb,
     devices.inputMode
+  ]);
+
+  const ensureMicProducing = useCallback(async () => {
+    const existingAudioProducer = localAudioProducer.current;
+
+    if (existingAudioProducer && !existingAudioProducer.closed) {
+      return;
+    }
+
+    const existingTrack = transmitMicrophoneTrackRef.current;
+
+    if (existingTrack && producerTransport.current) {
+      await produceLocalAudio(existingTrack);
+      syncTransmitMicrophoneTrackState();
+      return;
+    }
+
+    await startMicStream();
+  }, [
+    localAudioProducer,
+    produceLocalAudio,
+    producerTransport,
+    startMicStream,
+    syncTransmitMicrophoneTrackState
   ]);
 
   const startWebcamStream = useCallback(async () => {
@@ -1539,8 +1594,7 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
 
   const { toggleMic, toggleSound, toggleWebcam, toggleScreenShare } =
     useVoiceControls({
-      startMicStream,
-      localAudioStream,
+      ensureMicProducing,
       startWebcamStream,
       stopWebcamStream,
       startScreenShareStream,

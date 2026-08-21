@@ -50,7 +50,17 @@ const applyMemberVoiceModeration = (
   runtime.updateUserState(userId, nextState);
 
   if (serverMuted || serverDeafened) {
+    const hadAudioProducer = !!runtime.getProducer(StreamKind.AUDIO, userId);
+
     runtime.removeProducer(userId, StreamKind.AUDIO);
+
+    if (hadAudioProducer) {
+      pubsub.publishForChannel(runtime.id, ServerEvents.VOICE_PRODUCER_CLOSED, {
+        channelId: runtime.id,
+        remoteId: userId,
+        kind: StreamKind.AUDIO
+      });
+    }
   }
 
   pubsub.publish(ServerEvents.USER_VOICE_STATE_UPDATE, {

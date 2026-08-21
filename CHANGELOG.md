@@ -5,6 +5,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
 
+## [0.0.27] - 2026-08-21
+
+### Fixed
+
+- After server unmute or undeafen, the target can speak again once they unmute their mic (no leave/rejoin required).
+- After an in-app server update, the updater relaunches the server process so the service comes back up.
+
 ## [0.0.26] - 2026-08-21
 
 ### Added

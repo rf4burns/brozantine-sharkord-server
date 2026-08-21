@@ -22,8 +22,7 @@ type TVoiceStateUpdate = {
 };
 
 type TUseVoiceControlsParams = {
-  startMicStream: () => Promise<void>;
-  localAudioStream: MediaStream | undefined;
+  ensureMicProducing: () => Promise<void>;
 
   startWebcamStream: () => Promise<void>;
   stopWebcamStream: () => void;
@@ -33,8 +32,7 @@ type TUseVoiceControlsParams = {
 };
 
 const useVoiceControls = ({
-  startMicStream,
-  localAudioStream,
+  ensureMicProducing,
   startWebcamStream,
   stopWebcamStream,
   startScreenShareStream,
@@ -97,8 +95,8 @@ const useVoiceControls = ({
         micMuted: nextMicMuted
       });
 
-      if (!localAudioStream && !nextMicMuted) {
-        await startMicStream();
+      if (!nextMicMuted) {
+        await ensureMicProducing();
       }
     } catch (error) {
       pendingMicRestoreStateRef.current = previousPendingMicRestoreState;
@@ -113,9 +111,8 @@ const useVoiceControls = ({
     ownVoiceState.soundMuted,
     ownVoiceState.serverMuted,
     ownVoiceState.serverDeafened,
-    startMicStream,
+    ensureMicProducing,
     currentVoiceChannelId,
-    localAudioStream,
     t
   ]);
 
@@ -182,8 +179,8 @@ const useVoiceControls = ({
     try {
       await trpc.voice.updateState.mutate(nextVoiceState);
 
-      if (!localAudioStream && nextVoiceState.micMuted === false) {
-        await startMicStream();
+      if (nextVoiceState.micMuted === false) {
+        await ensureMicProducing();
       }
     } catch (error) {
       pendingMicRestoreStateRef.current = previousPendingMicRestoreState;
@@ -197,8 +194,7 @@ const useVoiceControls = ({
     ownVoiceState.micMuted,
     ownVoiceState.serverDeafened,
     currentVoiceChannelId,
-    localAudioStream,
-    startMicStream,
+    ensureMicProducing,
     t
   ]);
 

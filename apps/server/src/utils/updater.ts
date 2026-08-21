@@ -15,6 +15,7 @@ class Updater {
       repoOwner: 'rf4burns',
       repoName: 'brozantine-sharkord-server',
       currentVersion: SERVER_VERSION,
+      // relaunch the new binary after apply; does not auto-install on boot
       autoStart: true
     });
 
@@ -44,9 +45,8 @@ class Updater {
     try {
       logger.info('Checking for updates...');
 
-      // if an update is available, it will be downloaded automatically
-      // the app will restart to apply the update
-      await this.bunUpdater.checkForUpdates();
+      // if an update is available, download and replace the binary, then relaunch
+      await this.bunUpdater.checkForUpdates({ autoStart: true });
     } catch (error) {
       logger.error('Failed to check for updates: %s', getErrorMessage(error));
     } finally {

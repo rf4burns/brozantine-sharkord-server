@@ -20,7 +20,76 @@ Sharkord is a self-hosted communication platform for small groups. Think TeamSpe
 
 Upstream docs: [sharkord.com/docs](https://sharkord.com/docs).
 
-This Brozantine fork keeps that core and adds host-specific client work used on `sharkord.brozantine.com` (saved-host rail, KLIPY GIFs on Brozantine hosts, music-bot controls, YouTube resolve, and other native-parity UI).
+This Brozantine fork keeps that core and adds the client, server, and permission work below on top of upstream Sharkord `0.0.23`.
+
+## Changes in this fork
+
+Everything here is new versus [Sharkord/sharkord](https://github.com/Sharkord/sharkord) `development`. Ported from the Brozantine native/web Flutter clients unless noted.
+
+### Chat and compose
+
+- **KLIPY GIF picker** in the composer: search, trending, Favourites tab, user-settings key, SPA scrape fallback, and a baked-in key on `sharkord.brozantine.com` / `*.brozantine.com`
+- **GIF URL embeds** in the text renderer (`media.klipy.com` and similar) so GIF messages are not a raw link
+- **Discord-category emoji picker** with Twemoji glyphs, custom-emoji tab, search, and a frequently-used rail (replaces the GitHub/`@tiptap` catalog)
+- **Copy image pixels** from chat and the lightbox (`ClipboardItem` PNG), with URL copy as fallback
+- **In-app YouTube**: rate-limited `others.resolveYoutube` via `youtubei.js`; HTML5 `<video>` of the extracted file URL (no iframe)
+- **Optimistic paste-send**: image paste uploads immediately with a temp message id and local blob preview, then swaps to the server row
+- **Virtuoso-virtualized chat**: windowed DOM, start on the latest message, prepend older history without jump, idle-prune inactive channel maps
+- **Jump to bottom** FAB with a new-message count while scrolled up
+- **Unread text channels** use white/primary names until opened; mention badges stay red
+- **5-minute message grouping**, mention highlight, and overlay-style compose/chat header (topic/status in the header)
+
+### Voice and video
+
+- **Always-on mute/deafen** on the account bar (works outside a channel; local until connected)
+- **Mic and speaker device popovers** (input/output + input volume) that apply immediately if already in voice
+- **Voice device check** dialog before join (mic, camera, output, gate, test)
+- **Push-to-talk** with a capturable keybind (default `` ` ``)
+- **In-call mic monitor** (Discord-style: starting monitor force-deafens; undeafen or leave stops it)
+- **Change screen-share source** mid-share (`replaceTrack`) plus system/tab audio capture options
+- **Music bot panel** when the `music-bot` plugin is installed: play, queue, skip, stop, volume via `plugins.executeAction`; speaking ring on the external audio stream
+- **Voice channel status** (reuses `channels.topic`) with `SET_VOICE_CHANNEL_STATUS` (or `MANAGE_CHANNELS`); subtitle under voice names and a context-menu Set status
+- **Occupancy and per-member timers** on every voice channel (`occupiedSince` / `joinedAt`, ticking `m:ss` / `h:mm:ss`)
+- **Server mute and deafen** (`users.mute` / `users.deafen`), enforced on join/produce/updateState, with distinct icons and member moderation menus
+- **ICE restart** (`voice.restartIce`) for send/recv transports
+- **Voice connection quality** from RTT and packet loss (excellent / fair / poor)
+
+### Shell, hosts, and appearance
+
+- **Saved-host server rail**: add / switch / remove Sharkord hosts, JWT per host, reconnect on switch
+- **Discord-style desktop shell**: 72px rail, no global top bar, channel header, user/voice panels
+- **Sharkord mark** branding (favicon, rail, login) instead of Discord Clyde
+- **12 appearance presets** (Dark, Midnight, Slate, Charcoal, Ocean, Forest, Dusk, Crimson, Light, Sand, Paper, Arctic) plus accent swatches; default Dark + blurple
+- **Sounds settings** tab (opens the sounds dialog)
+- **Red mention pills** on channels, DMs, categories, and the server rail (`mentionUnreadByChannel`, `@here` respects online)
+- **Mention notification sound** and browser notification click-to-channel
+- **Open a DM on a shared saved host** matched by identity
+- **User profile extras**: nickname, pronouns, status message, preferences
+
+### Roles, moderation, and audit
+
+- **Role hierarchy**: `roles.position` and `roles.hoist`, drag-reorder (`roles.reorder`), ranking on kick/ban/delete/move/add-remove-role (Owner bypass)
+- **Hoisted member-list groups** in the right sidebar
+- **Split moderation perms** from `MANAGE_USERS`: `KICK_MEMBERS`, `BAN_MEMBERS`, `DELETE_USERS`, `VIEW_AUDIT_LOG`
+- **New member perms**: `MUTE_MEMBERS`, `DEAFEN_MEMBERS`, `MENTION_EVERYONE`, `CHANGE_NICKNAME`, `MANAGE_NICKNAMES`, `EMBED_LINKS` (nicknames and embeds on the default role)
+- **`@everyone` / `@here`** mention nodes; stripped without `MENTION_EVERYONE`
+- **`EMBED_LINKS`** gates Open Graph / link metadata (DMs still embed)
+- **Nickname update** gated; mods can set others via `users.updateNickname`
+- **User tombstone delete**: `users.deleted` / `deleted_at`; messages keep the same user id and name; no UI restore
+- **Server Audit Log** UI on `activityLog.get` (`VIEW_AUDIT_LOG`), with extra log types for mute, deafen, and nickname
+
+### Server and schema
+
+New tRPC routes: `activityLog.get`, `channels.updateVoiceStatus`, `others.resolveYoutube`, `roles.reorder`, `users.mute`, `users.deafen`, `users.updateNickname`, `voice.restartIce`.
+
+Migrations `0018`–`0020`:
+
+- Users: `nickname`, `pronouns`, `status_message`, `preferences`, `server_muted`, `server_deafened`, `deleted`, `deleted_at`
+- Roles: `position`, `hoist`
+- Activity log: nullable `user_id` (`ON DELETE SET NULL`) plus type/created indexes
+- Permission backfills for Owner and the default role
+
+`youtubei.js` is a server dependency for YouTube extract. Voice timestamps stay in memory (no extra tables).
 
 ## Architecture
 

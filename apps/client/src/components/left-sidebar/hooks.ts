@@ -1,9 +1,6 @@
 import { useAutoJoinLastChannel } from '@/features/app/hooks';
 import { setSelectedChannelId } from '@/features/server/channels/actions';
-import {
-  useChannelsMap,
-  useCurrentVoiceChannelId
-} from '@/features/server/channels/hooks';
+import { useChannelsMap } from '@/features/server/channels/hooks';
 import { channelByIdSelector } from '@/features/server/channels/selectors';
 import { store } from '@/features/store';
 import { getLocalStorageItemAsJSON, LocalStorageKey } from '@/helpers/storage';
@@ -80,37 +77,57 @@ const useRestoreLastSelectedChannel = () => {
   }, [channelsMap, autoJoinLastChannel]);
 };
 
+const waitForChannelInStore = (
+  channelId: number,
+  timeoutMs = 2000
+): Promise<boolean> => {
+  if (channelByIdSelector(store.getState(), channelId)) {
+    return Promise.resolve(true);
+  }
+
+  return new Promise((resolve) => {
+    const timeout = window.setTimeout(() => {
+      unsubscribe();
+      resolve(!!channelByIdSelector(store.getState(), channelId));
+    }, timeoutMs);
+
+    const unsubscribe = store.subscribe(() => {
+      if (!channelByIdSelector(store.getState(), channelId)) {
+        return;
+      }
+
+      window.clearTimeout(timeout);
+      unsubscribe();
+      resolve(true);
+    });
+  });
+};
+
 const useVoiceMoveSubscription = () => {
   const { t } = useTranslation('sidebar');
   const selectChannel = useSelectChannel();
-  const currentVoiceChannelId = useCurrentVoiceChannelId();
   const selectChannelRef = useRef(selectChannel);
-  const currentVoiceChannelIdRef = useRef(currentVoiceChannelId);
   const failedMoveUserRef = useRef(t('failedMoveUser'));
 
   selectChannelRef.current = selectChannel;
-  currentVoiceChannelIdRef.current = currentVoiceChannelId;
   failedMoveUserRef.current = t('failedMoveUser');
 
   useEffect(() => {
     const trpc = getTRPCClient();
 
     const sub = trpc.voice.onMoved.subscribe(undefined, {
-      onData: ({ channelId, fromChannelId }) => {
+      onData: ({ channelId }) => {
         void (async () => {
-          if (currentVoiceChannelIdRef.current !== fromChannelId) {
+          const appeared = await waitForChannelInStore(channelId);
+
+          if (!appeared) {
             toast.error(failedMoveUserRef.current);
             return;
           }
 
-          const channel = channelByIdSelector(store.getState(), channelId);
-
-          if (!channel) {
-            toast.error(failedMoveUserRef.current);
-            return;
-          }
-
-          const moved = await selectChannelRef.current(channelId);
+          const moved = await selectChannelRef.current(channelId, {
+            skipDeviceCheck: true
+          });
 
           if (!moved) {
             toast.error(failedMoveUserRef.current);

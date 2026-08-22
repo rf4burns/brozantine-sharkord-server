@@ -12,9 +12,9 @@ import {
 import { Permission } from '@kurier/shared';
 import { cn } from '@kurier/ui';
 import { Monitor, Video, VolumeX } from 'lucide-react';
-import { memo, useCallback, useMemo, useRef } from 'react';
+import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { UserPopover } from '../user-popover';
-import { VOICE_USER_DND_MIME } from './helpers';
+import { beginVoiceUserDrag, endVoiceUserDrag } from './helpers';
 import { StreamContextMenu } from './stream-context-menu';
 
 type TVoiceUserProps = {
@@ -32,28 +32,38 @@ const VoiceUser = memo(({ user, isOwnChannel = false }: TVoiceUserProps) => {
   const shouldShowMuteIndicator = isOwnChannel && !isOwnUser && isMuted;
   const canMove = !isOwnUser && can(Permission.MOVE_MEMBERS);
   const didDragRef = useRef(false);
+  const [popoverOpen, setPopoverOpen] = useState(false);
   const voiceState = useMemo(
     () => (isOwnUser ? ownVoiceState : user.state),
     [isOwnUser, ownVoiceState, user.state]
   );
 
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      e.stopPropagation();
+    },
+    []
+  );
+
   const handleDragStart = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
       didDragRef.current = true;
-      e.dataTransfer.setData(VOICE_USER_DND_MIME, String(user.id));
-      e.dataTransfer.effectAllowed = 'move';
+      setPopoverOpen(false);
+      e.stopPropagation();
+      beginVoiceUserDrag(user.id, e.dataTransfer);
     },
     [user.id]
   );
 
   const handleDragEnd = useCallback(() => {
+    endVoiceUserDrag();
     // click can fire after dragend; clear on the next tick if it did not
     window.setTimeout(() => {
       didDragRef.current = false;
     }, 0);
   }, []);
 
-  const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+  const handleRowClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!didDragRef.current) return;
 
     e.preventDefault();
@@ -61,20 +71,30 @@ const VoiceUser = memo(({ user, isOwnChannel = false }: TVoiceUserProps) => {
     didDragRef.current = false;
   }, []);
 
-  const displayName = (
-    <span className="flex-1 text-muted-foreground truncate text-xs">
-      {user.name}
-    </span>
+  const handleNameClick = useCallback(
+    (e: React.MouseEvent<HTMLSpanElement>) => {
+      e.stopPropagation();
+
+      if (didDragRef.current) {
+        e.preventDefault();
+        didDragRef.current = false;
+        return;
+      }
+
+      setPopoverOpen(true);
+    },
+    []
   );
 
   const userRow = (
     <div
       draggable={canMove}
+      onPointerDown={canMove ? handlePointerDown : undefined}
       onDragStart={canMove ? handleDragStart : undefined}
       onDragEnd={canMove ? handleDragEnd : undefined}
-      onClick={canMove ? handleClick : undefined}
+      onClick={canMove ? handleRowClick : undefined}
       className={cn(
-        'flex items-center gap-2 px-2 py-1 rounded hover:bg-accent/30 text-sm',
+        'flex items-center gap-2 px-2 py-1 rounded hover:bg-accent/30 text-sm select-none [&_img]:[-webkit-user-drag:none]',
         canMove && 'cursor-grab active:cursor-grabbing'
       )}
     >
@@ -85,15 +105,18 @@ const VoiceUser = memo(({ user, isOwnChannel = false }: TVoiceUserProps) => {
         showStatusBadge={false}
       />
 
-      {canMove ? (
-        <UserPopover userId={user.id}>
-          <span className="flex-1 min-w-0 text-muted-foreground truncate text-xs cursor-pointer">
-            {user.name}
-          </span>
-        </UserPopover>
-      ) : (
-        displayName
-      )}
+      <UserPopover
+        userId={user.id}
+        open={popoverOpen}
+        onOpenChange={setPopoverOpen}
+      >
+        <span
+          className="flex-1 min-w-0 text-muted-foreground truncate text-xs cursor-pointer"
+          onClick={handleNameClick}
+        >
+          {user.name}
+        </span>
+      </UserPopover>
 
       <ElapsedTime
         startedAt={user.joinedAt}
@@ -118,26 +141,13 @@ const VoiceUser = memo(({ user, isOwnChannel = false }: TVoiceUserProps) => {
     </div>
   );
 
-  // keep the draggable row free of PopoverTrigger so HTML5 drag can start
-  if (canMove) {
-    if (!isOwnUser && isOwnChannel) {
-      return (
-        <StreamContextMenu type="user" userId={user.id} name={user.name}>
-          {userRow}
-        </StreamContextMenu>
-      );
-    }
-
+  if (isOwnUser) {
     return userRow;
-  }
-
-  if (isOwnUser || !isOwnChannel) {
-    return <UserPopover userId={user.id}>{userRow}</UserPopover>;
   }
 
   return (
     <StreamContextMenu type="user" userId={user.id} name={user.name}>
-      <UserPopover userId={user.id}>{userRow}</UserPopover>
+      {userRow}
     </StreamContextMenu>
   );
 });

@@ -5,6 +5,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
 
+## [0.0.33] - 2026-08-22
+
+### Fixed
+
+- Dragging a voice member onto another channel works for people in your current channel as well, including members with only the default role.
+- GitHub releases use the matching CHANGELOG section as the release body.
+
 ## [0.0.32] - 2026-08-22
 
 ### Fixed

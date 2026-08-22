@@ -78,7 +78,9 @@ const StreamContextMenu = (props: TStreamContextMenuProps) => {
 
   return (
     <ContextMenu>
-      <ContextMenuTrigger>{props.children}</ContextMenuTrigger>
+      <ContextMenuTrigger asChild>
+        <div>{props.children}</div>
+      </ContextMenuTrigger>
       <ContextMenuContent className="w-64">
         <div className="px-3 py-3">
           <div className="flex items-center gap-2 mb-3">

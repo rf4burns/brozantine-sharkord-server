@@ -51,18 +51,22 @@ import { toast } from 'sonner';
 import { ChannelContextMenu } from '../context-menus/channel';
 import { UnreadCount } from '../unread-count';
 import { ExternalStream } from './external-stream';
-import { VOICE_USER_DND_MIME } from './helpers';
+import { getVoiceUserIdFromDrop, isVoiceUserDrag } from './helpers';
 import { VoiceUser } from './voice-user';
 import { Waveform } from './waveform';
 
 type TVoiceProps = Omit<TItemWrapperProps, 'children'> & {
   channel: TChannel;
+  headerContainerRef?: (node: HTMLElement | null) => void;
+  headerStyle?: React.CSSProperties;
 };
 
 const Voice = memo(
   ({
     channel,
     isSelected,
+    headerContainerRef,
+    headerStyle,
     ...props
   }: TVoiceProps & { isSelected: boolean }) => {
     const { t } = useTranslation('sidebar');
@@ -83,7 +87,7 @@ const Voice = memo(
     const isOwnChannel = currentVoiceChannelId === channel.id;
 
     const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-      if (!e.dataTransfer.types.includes(VOICE_USER_DND_MIME)) return;
+      if (!isVoiceUserDrag(e.dataTransfer)) return;
 
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
@@ -108,13 +112,11 @@ const Voice = memo(
       async (e: React.DragEvent<HTMLDivElement>) => {
         setIsDragOver(false);
 
-        const raw = e.dataTransfer.getData(VOICE_USER_DND_MIME);
-
-        if (!raw) return;
+        if (!isVoiceUserDrag(e.dataTransfer)) return;
 
         e.preventDefault();
 
-        const userId = Number(raw);
+        const userId = getVoiceUserIdFromDrop(e.dataTransfer);
 
         if (!userId || users.some((user) => user.id === userId)) return;
 
@@ -139,51 +141,58 @@ const Voice = memo(
           'ring-1 ring-primary bg-accent/40': isDragOver
         })}
       >
-        <ItemWrapper
-          {...props}
-          isSelected={isSelected}
-          isUnread={unreadCount > 0}
-          isMuted={isMuted}
-          className={cn(props.className, {
-            'text-blue-500':
-              someoneIsSharingScreen && (isOwnChannel || isSelected),
-            'text-green-500':
-              (isOwnChannel && !someoneIsSharingScreen) ||
-              (isSelected &&
-                !someoneIsSharingScreen &&
-                !isOwnChannel &&
-                isVoiceActive)
-          })}
-        >
-          {isVoiceActive ? (
-            <Waveform isScreenSharing={someoneIsSharingScreen} />
-          ) : (
-            <Volume2 className="h-4 w-4" />
-          )}
+        <div ref={headerContainerRef} style={headerStyle}>
+          <ChannelContextMenu channelId={channel.id}>
+            <ItemWrapper
+              {...props}
+              isSelected={isSelected}
+              isUnread={unreadCount > 0}
+              isMuted={isMuted}
+              className={cn(props.className, {
+                'text-blue-500':
+                  someoneIsSharingScreen && (isOwnChannel || isSelected),
+                'text-green-500':
+                  (isOwnChannel && !someoneIsSharingScreen) ||
+                  (isSelected &&
+                    !someoneIsSharingScreen &&
+                    !isOwnChannel &&
+                    isVoiceActive)
+              })}
+            >
+              {isVoiceActive ? (
+                <Waveform isScreenSharing={someoneIsSharingScreen} />
+              ) : (
+                <Volume2 className="h-4 w-4" />
+              )}
 
-          <span className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate">{channel.name}</span>
-            {channel.topic ? (
-              <span className="truncate text-[11px] leading-tight text-muted-foreground">
-                {channel.topic}
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate">{channel.name}</span>
+                {channel.topic ? (
+                  <span className="truncate text-[11px] leading-tight text-muted-foreground">
+                    {channel.topic}
+                  </span>
+                ) : null}
               </span>
-            ) : null}
-          </span>
 
-          {occupiedSince !== null && (
-            <ElapsedTime
-              startedAt={occupiedSince}
-              className="text-[10px] text-green-500 shrink-0"
-            />
-          )}
+              {occupiedSince !== null && (
+                <ElapsedTime
+                  startedAt={occupiedSince}
+                  className="text-[10px] text-green-500 shrink-0"
+                />
+              )}
 
-          {unreadCount > 0 && (
-            <UnreadCount count={unreadCount} hasMention={hasUnreadMentions} />
-          )}
-          {isMuted && unreadCount === 0 && (
-            <BellOff className="h-3.5 w-3.5 shrink-0 opacity-70" />
-          )}
-        </ItemWrapper>
+              {unreadCount > 0 && (
+                <UnreadCount
+                  count={unreadCount}
+                  hasMention={hasUnreadMentions}
+                />
+              )}
+              {isMuted && unreadCount === 0 && (
+                <BellOff className="h-3.5 w-3.5 shrink-0 opacity-70" />
+              )}
+            </ItemWrapper>
+          </ChannelContextMenu>
+        </div>
         {channel.type === 'VOICE' && (
           <div
             className="ml-6 space-y-1 mt-1"
@@ -332,40 +341,50 @@ const Channel = memo(({ channelId, isSelected, onClick }: TChannelProps) => {
   }
 
   return (
-    <div
-      ref={setNodeRef}
-      style={{
-        transform: CSS.Transform.toString(transform && { ...transform, x: 0 }),
-        transition,
-        opacity: isDragging ? 0.5 : 1
-      }}
-    >
-      <ChannelContextMenu channelId={channelId}>
-        <div>
-          {channel.type === 'TEXT' && (
+    <>
+      {channel.type === 'TEXT' && (
+        <div
+          ref={setNodeRef}
+          style={{
+            transform: CSS.Transform.toString(
+              transform && { ...transform, x: 0 }
+            ),
+            transition,
+            opacity: isDragging ? 0.5 : 1
+          }}
+        >
+          <ChannelContextMenu channelId={channelId}>
             <Text
               channel={channel}
               isSelected={isSelected}
               onClick={onClick}
               dragHandleProps={{ ...attributes, ...listeners }}
             />
-          )}
-          {channel.type === 'VOICE' && (
-            <Voice
-              channel={channel}
-              isSelected={isSelected}
-              onClick={onClick}
-              dragHandleProps={{ ...attributes, ...listeners }}
-              disabled={
-                !isConnectedVoiceChannel &&
-                (!channelCan(ChannelPermission.JOIN) ||
-                  !can(Permission.JOIN_VOICE_CHANNELS))
-              }
-            />
-          )}
+          </ChannelContextMenu>
         </div>
-      </ChannelContextMenu>
-    </div>
+      )}
+      {channel.type === 'VOICE' && (
+        <Voice
+          channel={channel}
+          isSelected={isSelected}
+          onClick={onClick}
+          headerContainerRef={setNodeRef}
+          headerStyle={{
+            transform: CSS.Transform.toString(
+              transform && { ...transform, x: 0 }
+            ),
+            transition,
+            opacity: isDragging ? 0.5 : 1
+          }}
+          dragHandleProps={{ ...attributes, ...listeners }}
+          disabled={
+            !isConnectedVoiceChannel &&
+            (!channelCan(ChannelPermission.JOIN) ||
+              !can(Permission.JOIN_VOICE_CHANNELS))
+          }
+        />
+      )}
+    </>
   );
 });
 

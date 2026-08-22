@@ -44,6 +44,43 @@ jobs:
         id: get_version
         run: echo "version=$(jq -r .version package.json)" >> "$GITHUB_OUTPUT"
 
+      - name: Build release notes from CHANGELOG.md
+        env:
+          VERSION: ${{ steps.get_version.outputs.version }}
+          DOCKER_IMAGE: ${{ secrets.DOCKER_USERNAME }}/kurier:v${{ steps.get_version.outputs.version }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import pathlib
+          import re
+
+          version = os.environ["VERSION"]
+          docker_image = os.environ["DOCKER_IMAGE"]
+          text = pathlib.Path("CHANGELOG.md").read_text(encoding="utf-8")
+          match = re.search(
+              rf"^## \[{re.escape(version)}\][^\n]*\n(.*?)(?=^## \[|\Z)",
+              text,
+              re.M | re.S,
+          )
+          notes = match.group(1).strip() if match else "See CHANGELOG.md for this version."
+          pathlib.Path("release-notes.md").write_text(
+              "\n".join(
+                  [
+                      "## Changes",
+                      "",
+                      notes,
+                      "",
+                      "## Docker Image",
+                      "```bash",
+                      f"docker pull {docker_image}",
+                      "```",
+                      "",
+                  ]
+              ),
+              encoding="utf-8",
+          )
+          PY
+
       - name: Identify user
         run: |
           git config user.name "github-actions[bot]"
@@ -76,14 +113,12 @@ jobs:
             apps/server/build/out/kurier-macos-x64
             apps/server/build/out/kurier-macos-arm64
             apps/server/build/out/release.json
-          body: |
-            ## Changes
-            (TODO)
+          body_path: release-notes.md
 
-            ## Docker Image
-            ```bash
-            docker pull ${{ secrets.DOCKER_USERNAME }}/kurier:v${{ steps.get_version.outputs.version }}
-            ```
+      - name: Remove generated release notes
+        if: always()
+        run: rm -f release-notes.md
+
       - name: Commit version bump
         if: ${{ inputs.bump != 'none' }}
         run: |

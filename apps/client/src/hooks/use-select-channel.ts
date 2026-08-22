@@ -45,7 +45,10 @@ const useSelectChannel = () => {
   );
 
   return useCallback(
-    async (channelId: number): Promise<boolean> => {
+    async (
+      channelId: number,
+      options?: { skipDeviceCheck?: boolean }
+    ): Promise<boolean> => {
       const channel = channelByIdSelector(store.getState(), channelId);
 
       if (!channel) return false;
@@ -66,7 +69,9 @@ const useSelectChannel = () => {
       }
 
       const joinImmediately =
-        !!currentVoiceChannelId || !!devices.skipVoiceDeviceCheck;
+        !!options?.skipDeviceCheck ||
+        !!currentVoiceChannelId ||
+        !!devices.skipVoiceDeviceCheck;
 
       if (joinImmediately) {
         return joinAndInit(channel.id);

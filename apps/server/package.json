@@ -1,6 +1,6 @@
 {
   "name": "@kurier/server",
-  "version": "0.0.32",
+  "version": "0.0.33",
   "module": "src/index.ts",
   "type": "module",
   "private": true,

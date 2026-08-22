@@ -1,8 +1,7 @@
 import { getErrorMessage } from '@kurier/shared';
 import { BunUpdater } from 'bun-sfe-autoupdater';
 import { createHash } from 'crypto';
-import { chmod, rename, writeFile } from 'fs/promises';
-import path from 'path';
+import { replaceBinaryInPlace } from '../helpers/replace-binary-in-place';
 import semver from 'semver';
 import { config } from '../config';
 import { logger } from '../logger';
@@ -234,19 +233,10 @@ class Updater {
     }
 
     const currentPath = process.execPath;
-    const newPath = path.join(
-      path.dirname(currentPath),
-      `${path.basename(currentPath)}.new`
-    );
-    const oldPath = `${currentPath}.old`;
-
-    await writeFile(newPath, fileData);
-    await chmod(newPath, 0o755);
 
     // linux allows replacing a running binary; the current process keeps the
     // old inode until exit. systemd then starts the new file at the same path.
-    await rename(currentPath, oldPath);
-    await rename(newPath, currentPath);
+    await replaceBinaryInPlace(currentPath, fileData);
 
     logger.info(
       'Binary replaced with %s; exiting so systemd can restart',

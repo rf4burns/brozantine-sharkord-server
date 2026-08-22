@@ -74,52 +74,57 @@ const Category = memo(({ categoryId }: TCategoryProps) => {
 
   return (
     <div
-      ref={setNodeRef}
-      style={{
-        transform: CSS.Transform.toString(transform && { ...transform, x: 0 }),
-        transition,
-        opacity: isDragging ? 0.5 : 1
-      }}
       className="mb-2"
       data-testid={TestId.CATEGORY_ITEM}
       data-category-id={category.id}
     >
-      <div className="mb-0.5 flex w-full items-center px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-faint">
-        <div className="flex w-full items-stretch gap-1">
-          <IconButton
-            variant="ghost"
-            size="sm"
-            icon={ChevronIcon}
-            onClick={toggleExpanded}
-            title={expanded ? t('collapseCategory') : t('expandCategory')}
-          />
-          <CategoryContextMenu categoryId={category.id}>
-            <span
-              {...attributes}
-              {...listeners}
-              className="cursor-grab active:cursor-grabbing flex min-w-0 flex-1 items-center gap-2"
-            >
-              <span className="truncate">{category.name}</span>
-              {!expanded && unreadCount > 0 && (
-                <UnreadCount
-                  count={unreadCount}
-                  hasMention={hasUnreadMentions}
-                  className="ml-0"
-                />
-              )}
-            </span>
-          </CategoryContextMenu>
-        </div>
+      <div
+        ref={setNodeRef}
+        style={{
+          transform: CSS.Transform.toString(
+            transform && { ...transform, x: 0 }
+          ),
+          transition,
+          opacity: isDragging ? 0.5 : 1
+        }}
+      >
+        <div className="mb-0.5 flex w-full items-center px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-faint">
+          <div className="flex w-full items-stretch gap-1">
+            <IconButton
+              variant="ghost"
+              size="sm"
+              icon={ChevronIcon}
+              onClick={toggleExpanded}
+              title={expanded ? t('collapseCategory') : t('expandCategory')}
+            />
+            <CategoryContextMenu categoryId={category.id}>
+              <span
+                {...attributes}
+                {...listeners}
+                className="cursor-grab active:cursor-grabbing flex min-w-0 flex-1 items-center gap-2"
+              >
+                <span className="truncate">{category.name}</span>
+                {!expanded && unreadCount > 0 && (
+                  <UnreadCount
+                    count={unreadCount}
+                    hasMention={hasUnreadMentions}
+                    className="ml-0"
+                  />
+                )}
+              </span>
+            </CategoryContextMenu>
+          </div>
 
-        <Protect permission={Permission.MANAGE_CHANNELS}>
-          <IconButton
-            variant="ghost"
-            size="sm"
-            icon={Plus}
-            onClick={onCreateChannelClick}
-            title={t('createChannel')}
-          />
-        </Protect>
+          <Protect permission={Permission.MANAGE_CHANNELS}>
+            <IconButton
+              variant="ghost"
+              size="sm"
+              icon={Plus}
+              onClick={onCreateChannelClick}
+              title={t('createChannel')}
+            />
+          </Protect>
+        </div>
       </div>
 
       {expanded && <Channels categoryId={category.id} />}
